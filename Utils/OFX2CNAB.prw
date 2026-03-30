@@ -42,7 +42,7 @@ User Function OFX2CNAB()
     Local cNomeBase := ""
     Local cDirOFX   := ""
     Local nBarra    := 0
-    Local nK := Len(cArqOFX)
+
 
 
     fnCriaSx1(aRegs, cPerg)
