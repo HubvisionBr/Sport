@@ -1,0 +1,104 @@
+#Include 'Protheus.ch'
+#Include 'FWMVCDEF.ch'
+#Include 'RestFul.CH'
+#INCLUDE "TOTVS.CH"
+#INCLUDE "TopConn.ch"
+#INCLUDE 'COLORS.CH'
+#INCLUDE 'FONT.CH'
+#INCLUDE 'RWMAKE.CH'
+#INCLUDE "TBICONN.CH"
+#include "parmtype.ch"
+#INCLUDE "FWADAPTEREAI.CH"
+#Include "TBICODE.CH"
+#include 'fileio.ch'
+#include 'tlpp-core.th'
+CLASS HVLIB
+    PUBLIC DATA isBlind AS Logical
+    PUBLIC DATA cEnter  AS Character
+    PUBLIC DATA cXml    AS Character
+    PUBLIC DATA aDados  AS Array
+	PUBLIC DATA xCampo  AS Character
+	PUBLIC DATA xDado   AS Character
+    PUBLIC METHOD New() CONSTRUCTOR
+    PUBLIC METHOD MontaXml(aXml)
+    PUBLIC METHOD LeCsv(cArq)
+	PUBLIC METHOD ConvDado()
+ENDCLASS
+
+// Contrutor
+METHOD New() CLASS HVLIB
+	::isBlind   := IsBlind()
+	::cEnter    := CHR(13) + CHR(10)
+	::cXml      := ""
+	::aDados    := {}
+	::xCampo    := ""
+	::xDado     := ""
+	
+RETURN
+
+// Monta o XML
+METHOD MontaXml(aXml) CLASS HVLIB
+	Local i,j
+    If Len(aXml) > 0
+        For i := 1 to len(aXml)
+            If ValType(aXml[i][1]) <> "U"
+                ::cXml += "<"+AllTrim(aXml[i][1])+">"
+                //Valida se for um array
+                If(ValType(aXml[i][2]) == "A")
+                    //Se for, entra na recusividade
+                    For j := 1 to len(aXml[i][2])
+                        ::MontaXml(aXml[i][2][j])
+                    Next
+                Else
+                    //Se não, passa o conteudo normal
+                    ::cXml += AllTrim(cValToChar(aXml[i][2]))
+                EndIf
+                ::cXml += "</"+AllTrim(aXml[i][1])+">"+::cEnter
+            EndIf
+        Next
+    EndIf
+RETURN
+
+// Ler o XML
+METHOD LeCsv(cArq) CLASS HVLIB
+	Local lRet := .T.
+	Local oFile := FWFileReader():New(Alltrim(cArq))
+	//Se o arquivo pode ser aberto
+	If (oFile:Open())
+		//Se não for fim do arquivo
+		If ! (oFile:EoF())
+			//Enquanto houver linhas a serem lidas
+			While (oFile:HasLine())
+				//Buscando o texto da linha atual
+				cBuffer := oFile:GetLine()
+				//cBuffer := DecodeUTF8(cBuffer, "cp1252")
+				aADD(::aDados,Separa(cBuffer,";",.T.))
+			EndDo
+		else
+			ConOut("O arquivo " +cArq+ " não foi encontrado.","ATENCAO")
+			lRet := .F.
+		EndIf
+		//Fecha o arquivo e finaliza o processamento
+		oFile:Close()
+	else
+		ConOut("Arquivo "+cArq+" não pode ser aberto!")
+		lRet := .F.
+	EndIf
+Return lRet
+
+METHOD ConvDado() CLASS HVLIB
+	Local xRet
+
+	IF GetSX3Cache(::xCampo, "X3_TIPO") == "C"
+		xRet := ::xDado
+	ElseIf GetSX3Cache(::xCampo, "X3_TIPO") == "D"
+		xRet := CtoD(::xDado)
+	ElseIf GetSX3Cache(::xCampo, "X3_TIPO") == "N"
+		xRet := Val(::xDado)
+	ElseIf GetSX3Cache(::xCampo, "X3_TIPO") == "M"
+		xRet := ::xDado
+	ElseIf GetSX3Cache(::xCampo, "X3_TIPO") == "L"
+		xRet := ::xDado
+	Endif
+
+Return xRet

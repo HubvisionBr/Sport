@@ -1,0 +1,1352 @@
+#Include 'Protheus.ch'
+#Include 'FWMVCDEF.ch'
+#Include 'RestFul.CH'
+#INCLUDE "TOTVS.CH"
+#INCLUDE "TopConn.ch"
+#INCLUDE 'COLORS.CH'
+#INCLUDE 'FONT.CH'
+#INCLUDE 'RWMAKE.CH'
+#INCLUDE "TBICONN.CH"
+#include "parmtype.ch"
+#INCLUDE "FWADAPTEREAI.CH"
+#Include "TBICODE.CH"
+#include 'fileio.ch'
+#include 'tlpp-core.th'
+#include "vkey.ch"
+
+
+USER FUNCTION HVUTIL()
+
+	Private oFont1, oFont2
+	Private oDLG, oPAnel, oWPanel, oStepWiz, oPag, oCmb
+	Private cCombo      := ''
+	Private cOper       := ''
+	Private cLgo        := ''
+	Private cPath       := ''
+	Private cPath2      := ''
+	Private cAtrib      := ''
+	Private lCmb1       := .F.
+	Private lSubP       := .F.
+	Private lScreen     := .T.
+	Private lOk         := .F.
+	Private aOperacao    := {}
+	Private cCabec       := ''
+	Private cRun         := ''
+	Private _aPathTp     := {}
+	Private oMSGRun, cMsgFim
+
+// RpcSetEnv('01','010101')
+
+	// AADD( aOperacao,'1. SigaCMD | Executa uma função do RPO')
+	// AADD( aOperacao,'2. Gerar CSV | Executa Pesquisa por Parâmetros SX6 contidos nas Funções')
+	// AADD( aOperacao,'3. Browse | Excecuta Visulização/Edição de parâmetros contidos no .csv')
+	AADD( aOperacao,'1. SigaSQL | Executa Script SQL')
+	// AADD( aOperacao,'5. UpdateSQL | Executa Update SQL')
+	// AADD( aOperacao,'6. SigaMVC | Pesquisa rotinas em MVC')
+	cMsgFim := ''
+
+	oFont1   := TFont():New('Arial',,-11,,.T.,,,,.T.,)
+	oFont2   := TFont():New('Arial',, 13,,.T.,,,,.T.,)
+
+	While lScreen
+		lScreen := .F.
+		f_SCREENS()
+	End
+
+// RpcClearEnv()
+RETURN
+
+User Function HVutil2
+
+	MsgAlert("Em construção")
+	U_F3PESQ("SB1",{"B1_COD","B1_DESC"},{"B1_COD","B1_DESC"})
+	Alert(aRet[1])
+	Alert(aRet[2])
+
+Return
+
+	***********************************************************
+STATIC FUNCTION f_SCREENS() //Containers
+	***********************************************************
+
+	DEFINE DIALOG oDLG TITLE 'HV - Utilitários' PIXEL
+	oDLG:nWidth := 650
+	oDLG:nHeight:= 575
+
+	oPanel := TPanel():New(0,0,,oDLG,,.T.,,,CLR_WHITE,0,0)
+	oPanel:ALIGN:= CONTROL_ALIGN_ALLCLIENT
+
+	oStepWiz:= FWWizardControl():New(oPanel)
+	oStepWiz:ActiveUISteps()
+
+	oPag := oStepWiz:AddStep('1')
+	oPag:SetStepDescription('Operação')
+	oPag:SetConstruction({|WPanel|f_wpg1(WPanel)})
+	oPag:SetPrevAction({||.F.})
+	oPag:SetCancelAction({||oDLG:End(), .T.})
+	oPag:SetNextTitle('Avançar')
+	oPag:SetNextAction({|| lOk := f__Valid(1)})
+
+	oPag := oStepWiz:AddStep('2')
+	oPag:SetStepDescription('Configure e Execute')
+	oPag:SetConstruction({|WPanel|f_wpg2(WPanel)})
+	oPag:SetCancelAction({||oDLG:End(), .T.})
+	oPag:SetPrevAction({|| lOk := f__Valid(99)})
+	oPag:SetNextTitle('Processar')
+	oPag:SetNextAction({|| lOk := f__Valid(2)})
+
+	oPag := oStepWiz:AddStep('3')
+	oPag:SetStepDescription('Processamento')
+	oPag:SetConstruction({|WPanel|f_wpg3(WPanel)})
+	oPag:SetCancelAction({||oDLG:End(), .T.})
+	oPag:SetPrevTitle('Recomeçar')
+	oPag:SetPrevAction({|| lOk := f__Valid(99)})
+	oPag:SetNextTitle('Encerrar')
+	oPag:SetNextAction({||oDLG:End(),.T.})
+
+	oStepWiz:Activate()
+	ACTIVATE DIALOG oDLG CENTERED
+	oStepWiz:Destroy()
+
+RETURN
+
+	***********************************************************
+STATIC FUNCTION f_wpg1(oWPanel)
+	***********************************************************
+	Local oPnLgo,oPnCmb,oLgo
+
+	oPnCmb  := TPanel():New(010,020, ,oWPanel, ,.T.,,,CLR_HCYAN,270,030,.T.,.F.)
+	oPnLgo  := TPanel():New(060,085, ,oWPanel, ,.T.,,,CLR_WHITE,150,090,.F.,.T.)
+
+	cLgo := GetSrvProfString('StartPath','')+'lgmid'+CEMPANT+'.png'
+	if !File(cLgo)
+		cLgo := GetSrvProfString('StartPath','')+'lgmid.png'
+	endif
+	if !File(cLgo)
+		cLgo := GetSrvProfString('StartPath','')+'lgrl99.bmp'
+	endif
+	if File(cLgo)
+		oLgo   := TBitmap():New(0,0,100,250,NIL,cLgo,.T.,oPnLgo,,,,.T.)
+		oLgo:ALIGN:= CONTROL_ALIGN_ALLCLIENT
+	ENDIF
+
+	oCmb := TComboBox():New(02,02,{|u|if(PCount()>0,cCombo:=u,cCombo)}, aOperacao,265,25,oPnCmb,,{||/*conout('Item Combo: '+cCombo)*/},,,,.T.,,,,,,,,,'cCombo',,,oFont2,8388608)
+
+RETURN
+
+	***********************************************************
+STATIC FUNCTION f_wpg2(oWPanel)
+	***********************************************************
+//Pagina das construções, Distribuidor
+	Do case
+
+	Case cOper $ '145'
+		f__sigacmd(oWPanel)
+
+	Case cOper $ '236'   //Operações - Parametros SX6, CSV, Brw
+		f__CsvBrw(oWPanel)
+
+	Case .F. //cOper $ '??'     //Valide outras construções
+
+	End Case
+
+RETURN
+
+	*************************************
+STATIC FUNCTION f_wpg3(oWPanel)
+	Local oPnPrc
+
+	oPnPrc := TPanel():New(060,001,,oWPanel,,.T.,,,CLR_WHITE,100,100,.F.,.F.)
+	oPnPrc:ALIGN:= CONTROL_ALIGN_ALLCLIENT
+
+	IF lOk
+
+		do case
+
+		case cOper == '1'
+			FwMsgRun( oPnPrc,{|oMSGRun|f_QryRun(oMSGRun)},,'executando Query .  .  .  .'     )
+
+		case .F. //Valide outras construções
+		end case
+
+		FreeObj(oMSGRun)
+
+		if !empty(cMsgFim); Aviso('HV |', cMsgFim, {'OK'}, 1)
+		endif
+
+	ENDIF
+
+RETURN
+
+Static Function f__sigacmd(oWPanel)
+	Local oPnLgo,oPnTex,oPnPth,oLgo,oSay,oMSay
+
+	oPnLgo  := TPanel():New(001,001,            ,oWPanel,      ,.T.,,,CLR_WHITE,100,060)//,.F.,.F.)
+	oPnTex  := TPanel():New(000,107,'Operação:' ,oWPanel,oFont2,.F.,,,CLR_HCYAN,218,060)//,.F.,.F.)
+	oPnPth  := TPanel():New(060,001, 'Escreva:' ,oWPanel,oFont2,.F.,,,CLR_WHITE,322,110)//,.F.,.F.)
+
+	IF File(cLgo)
+		oLgo   := TBitmap():New(0,0,100,250,NIL,cLgo,.T.,oPnLgo,,,,.T.)
+		oLgo:ALIGN:= CONTROL_ALIGN_ALLCLIENT
+	ENDIF
+
+	oSay := TSay():New(00,00,{||cCombo},oPnTex ,,oFont1,,,,.T.,CLR_BLUE,,218,060,,,,,,,2,2)
+	oMSay := tMultiget():new( 07, 02, {| u | if( pCount() > 0, cRun := u, cRun ) }, oPnPth, 317, 095, , , , , , .T. )
+//oMSay:ALIGN:= CONTROL_ALIGN_ALLCLIENT
+return
+
+Static Function f__CsvBrw(oWPanel)
+	Local oPnLgo,oPnTex,oPnPth,oLgo,oSay,oSubP
+
+	oPnLgo  := TPanel():New(001,001,            ,oWPanel,      ,.T.,,,CLR_WHITE,100,060)//,.F.,.F.)
+	oPnTex  := TPanel():New(000,107,'Operação:' ,oWPanel,oFont2,.F.,,,CLR_HCYAN,218,060)//,.F.,.F.)
+	oPnPth  := TPanel():New(060,001,'\Local:\'  ,oWPanel,oFont2,.F.,,,CLR_WHITE,322,080)//,.F.,.F.)
+
+	IF File(cLgo)
+		oLgo   := TBitmap():New(0,0,100,250,NIL,cLgo,.T.,oPnLgo,,,,.T.)
+		oLgo:ALIGN:= CONTROL_ALIGN_ALLCLIENT
+	ENDIF
+
+	oSay := TSay():New(00,00,{||cCombo},oPnTex,,oFont1,,,,.T.,CLR_BLUE,,218,060,,,,,,,2,2)
+
+	__nButLi1 := 015
+	__nButLi2 := 035
+	@ __nButLi1,040 MSGET cPath               SIZE 200,010               OF oPnPth   PIXEL
+	@ __nButLi2,040 MSGET cPath2              SIZE 200,010  WHEN lCmb1   OF oPnPth   PIXEL
+	TButton():New( __nButLi1+1, 245, "Origem...", oPnPth,{|| cPath := cGetFile(_aPathTp[3]              ,OemToAnsi("Origem - "+_aPathTp[2]) ,,"",.F., _aPathTp[1]                                       ,.F.)}  ,060,010,,,.F.,.T.,.F.,,.F.,,,.F.)
+	TButton():New( __nButLi2+1, 245, "Destino...",oPnPth,{|| cPath2:= cGetFile( 'Todos os arquivos|*.*' ,OemToAnsi("Destino - Pasta")       ,,"",.F., GETF_LOCALHARD+GETF_NETWORKDRIVE+GETF_RETDIRECTORY,.F.)}  ,060,010,,,.F.,.T.,.F.,,.F.,{||lCmb1},,.F.)
+
+	oSubP := TCheckBox():New(065,040,'Incluir Subpastas',{|| lSubP },oPnPth,200,200,,{|| lSubP := !lSubP,oSubP:CtrlRefresh()},oFont2,,,,,.T.,,,{||lCmb1})
+
+return
+
+
+	***********************************************************
+STATIC FUNCTION f_CmdRun(oMSGRun)
+	***********************************************************
+	Local cTmp:=""
+	Local cMsgErro := ""
+	Local bBlock
+
+	cTmp := StrTran(cRun, chr(13), ",")
+	cTmp := StrTran(cRun, chr(10), ",")
+
+	bBlock := ErrorBlock({ |e| cMsgErro += e:Description + e:ErrorStack + chr(10) + chr(13) +"#############################" + chr(10) + chr(13)})
+
+	BEGIN SEQUENCE
+		xRes:=&(cTmp)
+		RECOVER
+	END SEQUENCE
+
+	If !Empty(cMsgErro)
+		If Type("oMainWnd") == "U"
+			alert(cMsgErro)
+		Else
+			aviso("Erro", cMsgErro, {"OK"}, 3)
+		endif
+	EndIf
+
+RETURN
+
+	***********************************************************
+STATIC FUNCTION f_PesqMV(oMSGRun)
+	***********************************************************
+	Local _x, _y, _i
+	Local CSVLIN    := ''
+	Private aParams, aFiles, aSubFiles, aFilesOk
+
+	aParams := {}; aFiles := {}; aSubFiles := {}; aFilesOk := {}
+	_awise  := {'PUTMV','GETMV','GETNEWPAR'}
+	_EXT    := 'PRW/PRX/PRJ/TLPP'
+	cPath   := alltrim(cPath)
+	cAtrib  := iif( lSubP, 'D', cAtrib )
+
+	if !subs(cPath,len(cPath),1) == '\'
+		cPath   += '\'
+	endif
+
+	aFiles  := Directory( cPath+'*.*', cAtrib )
+
+	//Check subpastas - ini
+	IF lSubP
+		for _x:= 1 to len(aFiles)
+			if aFiles[_x][5] == 'D'
+				if !subs(alltrim(aFiles[_x][1]),1,1) == '.'
+					f__subpasta(cPath+aFiles[_x][1]+'\')
+				endif
+				loop
+			endif
+
+			aadd(aFilesOk, aFiles[_x])
+
+		next _x
+
+		aFiles := aFilesOk
+		if !empty(aSubFiles)
+			for _x := 1 to len(aSubFiles)
+				aadd(aFiles, aSubFiles[_x])
+			next _x
+		endif
+	ENDIF
+	//Check subpastas - fim
+
+	//Nome do arquivo
+	For _x:= 1 to Len(cPath)
+		if subs(cPath,_x,1) $ '/\' .and. _x < len(cPath)
+			_PosIni := _x + 1
+		endif
+	Next _x
+
+	xNome := Subs(cPath, _PosIni,Len(cPath))
+
+	if subs(xNome,len(xNome)) $ '/\'
+		xNome := Subs(xNome, 1,Len(xNome) - 1)
+	endif
+
+	xNome +='_'+dtos(date())+strtran(time(),':','')+'.csv'
+
+	//Pesquisa Fontes
+	for _x := 1 To Len(aFiles)
+
+		if ! subs(aFiles[_x][1],at('.',aFiles[_x][1]) + 1) $ _EXT
+			loop; endif
+
+			Sleep(500)
+			oMSGRun:SetText('Pesquisando : '+aFiles[_x][1])
+			ProcessMessages()
+
+			FT_FUSE(cPath+aFiles[_x][1])
+			FT_FGoTop()
+			cParInc := ''
+			WHILE !FT_FEof()
+				CSVLIN := upper( FT_FReadLn() )
+
+				for _y := 1 to len(_awise) //step _step
+					if  _awise[_y] $ CSVLIN
+
+						_stepUp := 1
+						_step := len(_awise[_y])
+
+						for _i := 1 to len(CSVLIN) step _stepUp
+							if  subs(CSVLIN, _i,_step) == _awise[_y]
+								__reftext   := subs( CSVLIN, _i + _step)
+								__norte     := at('_', __reftext)
+								__Posini    := __norte - 2 // MV
+								__Posfim    :=  f__Posfim(subs(__reftext,__Posini))
+
+								aadd(aParams, { aFiles[_x][1], upper(alltrim(subs(__reftext,__Posini,__Posfim)))})
+
+								DBSELECTAREA('SX6')
+								SX6->(DBSETORDER(1))
+
+								IF DBSEEK(xFilial('SX6')+PADR(aParams[Len(aParams)][2],10))
+									cParInc += aParams[Len(aParams)][1]+';'
+									cParInc += aParams[Len(aParams)][2]+';'
+									cParInc += alltrim(SX6->X6_CONTEUD)+';'
+									cParInc += SX6->X6_TIPO+';'
+									cParInc += Alltrim(alltrim(SX6->X6_DESCRIC)+' '+alltrim(SX6->X6_DESC2))+';'
+									cParInc += alltrim(cPath)    +CRLF
+								ELSE
+									cParInc += aParams[Len(aParams)][1]+';'
+									cParInc += aParams[Len(aParams)][2]+';'
+									cParInc += 'N/A;'
+									cParInc += 'N/A;'
+									cParInc += 'N/A;'
+									cParInc += alltrim(cPath)    +CRLF
+								ENDIF
+
+								MemoWrite(  cPath2+xNome, cCabec + CRLF + cParInc )
+								//_stepUp := _i + _step + __Posfim
+							endif
+						next _i
+					endif
+				next _y
+
+
+				FT_FSkip()
+			END
+			FT_FUse()
+
+
+		next _x
+
+//Cria Planilha
+// IF Len(aParams) > 0
+//     Sleep(500)
+//     oMSGRun:SetText('preparando arquivo .csv, Aguarde...')
+//     ProcessMessages()
+
+//     cParInc := ''
+//     //aSort(aParams, , , {|x, y| x[1]+x[2] < y[1]+y[2]})
+
+//     For _x := 1 To Len(aParams)
+
+//         DBSELECTAREA( 'SX6' )
+//         DBSETORDER( 1 )
+//         IF DBSEEK(xFilial('SX6')+PADR(aParams[_x][2],10))
+//             cParInc += aParams[_x][1]+';'
+//             cParInc += aParams[_x][2]+';'
+//             cParInc += alltrim(SX6->X6_CONTEUD)+';'
+//             cParInc += SX6->X6_TIPO+';'
+//             cParInc += Alltrim(alltrim(SX6->X6_DESCRIC)+' '+alltrim(SX6->X6_DESC2))+';'
+//             cParInc += alltrim(cPath)    +CRLF
+//         ELSE
+//             cParInc += aParams[_x][1]+';'
+//             cParInc += aParams[_x][2]+';'
+//             cParInc += 'N/A;'
+//             cParInc += 'N/A;'
+//             cParInc += 'N/A;'
+//             cParInc += alltrim(cPath)    +CRLF
+//         ENDIF
+
+//     Next x
+
+//     xNome +='_'+dtos(date())+strtran(time(),':','')+'.csv'
+//     MemoWrite(  cPath2+xNome, cCabec + CRLF + cParInc )
+
+// ELSE
+//     cMsgFim := 'Nenhuma correspondência encontrada.'
+// ENDIF
+
+		ShellExecute('OPEN', xNome, '', cPath2, 1)
+
+		RETURN
+
+static function f__subpasta(cPathSub)
+	local nx, aPasta
+
+	aPasta := DIRECTORY( cPathSub+'*.*', 'D' )
+
+	for nx := 1 to len(aPasta)
+
+		if aPasta[nx][5] == 'D'
+			if  !subs(alltrim(aPasta[nx][1]),1,1) == '.'
+				f__subpasta(cPathSub+aPasta[nx][1]+'\')
+			endif
+			loop
+		endif
+
+		aPasta[nx][1] := subs(cPathSub,len(cPath))+aPasta[nx][1]
+		aadd(aSubFiles, aPasta[nx])
+
+	next nx
+
+return
+
+Static Function f__Posfim(__texto)
+	local nret := 10
+	local nx
+	for nx := 1 to len(__texto)
+		if subs(__texto,nx,1) == "'" .or. subs(__texto,nx,1) == '"'
+			nret := nx - 1
+			exit
+		endif
+	next nx
+
+return nRet
+
+	***********************************************************
+STATIC FUNCTION f_BrwsMV(oMSGRun)
+	***********************************************************
+	Local CSVLIN := ''
+	Local nCont :=0
+	Local x
+	Private aCSVkb, aCSVIt, aLinAlt, oDlgCSv, oBrowse
+
+	aCSVkb  := {}
+	aCSVIt  := {}
+	aLinAlt := {}
+	cPath   := alltrim(cPath)
+
+	//Nome do arquivo
+	For x:= 1 to Len(cPath)
+		if subs(cPath,x,1) $ '/\' .and. x < len(cPath)
+			_PosIni := x + 1
+		endif
+	Next x
+	xNome := Subs(cPath, _PosIni,Len(cPath))
+
+	FT_FUSE(cPath)
+	FT_FGoTop()
+	WHILE !FT_FEof()
+		nCont ++
+		CSVLIN := FT_FReadLn()
+		if nCont == 1
+			if ! ( CSVLIN == cCabec )
+				cMsgFim := 'Arquivo '+xNome+' Inváido!'
+				return
+			endif
+			aCSVkb :=  SEPARA(CSVLIN,';')
+		else
+			aadd( aCSVIt,  SEPARA(CSVLIN,';') )
+			aCSVIt[Len(aCSVIt)][3] := PADR(aCSVIt[Len(aCSVIt)][3],250)
+		endif
+
+		FT_FSkip()
+	END
+	FT_FUSE()
+
+	_aCSVKbTam := {25,25,250,10,100,100}
+	_inidlg := 150
+	_atedlg := 150
+	DEFINE DIALOG oDlgCsv TITLE xNome FROM _inidlg,_atedlg TO 0750,1500 PIXEL
+
+	oBrowse := TCBrowse():New( 00 , 00, 675, 280,, aCSVkb,_aCSVKbTam, oDlgCsv,,,,,{||},,,,,,,.F.,,.T.,,.F.,,, )
+	oBrowse:SetArray(aCSVIt)
+	oBrowse:bLine := {|| {aCSVIt[oBrowse:nAt,01],;
+		aCSVIt[oBrowse:nAt,02],;
+		aCSVIt[oBrowse:nAt,03],;
+		aCSVIt[oBrowse:nAt,04],;
+		aCSVIt[oBrowse:nAt,05],;
+		aCSVIt[oBrowse:nAt,06]  }  }
+	oBrowse:lHScroll := .t.
+	oBrowse:lVScroll := .t.
+	oBrowse:bLDblClick := {|| f__DBLClick() }
+
+	TButton():New( 287, 015, "Fechar" , oDlgCsv,{|| oDlgCsv:End() },60,010,,,.F.,.T.,.F.,,.F.,,,.F.)
+	TButton():New( 287, 605, "Aplicar", oDlgCsv,{|| oDlgCsv:End(),LjMsgRun('atualizando arquivo SX6 ...',,{|| f__AtuSx6()} ) },60,010,,,.F.,.T.,.F.,,.F.,,,.F.)
+
+	ACTIVATE DIALOG oDlgCsv CENTERED
+
+Return
+
+Static Function f__DBLClick()
+	IF oBrowse:ColPos == 3
+		lEditCell(@aCSVIt,oBrowse,'@!',3)
+		if ascan(aLinAlt,oBrowse:nAt) == 0
+			aadd(aLinAlt,oBrowse:nAt)
+		endif
+		oBrowse:Refresh()
+		oBrowse:DrawSelect()
+	ENDIF
+Return( NIL )
+
+Static Function f__AtuSx6()
+	local _x, aBrwArr
+	local lExec := Len(aLinAlt) > 0
+	Private lAutoErrNoFile := .F.
+
+	if !lExec
+		lExec := MSGYESNO( 'Nenhum registro foi alterado.'+CRLF+'Atualizar todos?', 'HV' )
+	endif
+
+	if lExec
+
+		aBrwArr := oBrowse:aArray
+
+		if len(aLinAlt) == 0
+			for _x := 1 to Len(aBrwArr)
+				aadd( aLinAlt, _x )
+			next _x
+		endif
+
+		DBSELECTAREA( 'SX6' )
+		DBSETORDER( 1 )
+		For _x := 1 to len(aLinAlt)
+			SX6->(dbGotop())
+			IF SX6->( DBSEEK(xFilial('SX6')+PADR(aBrwArr[aLinAlt[_x]][2],10)) )
+				RecLock('SX6', .F.)
+				SX6->X6_CONTEUD := aBrwArr[aLinAlt[_x]][3]
+				SX6->(MsUnLock())
+			ELSE
+				if empty(cMsgFim)
+					cMsgFim := 'Não Atualizados:'+CRLF+CRLF
+					cMsgFim += PADR(aBrwArr[aLinAlt[_x]][2],10) + CRLF
+				else
+					cMsgFim += PADR(aBrwArr[aLinAlt[_x]][2],10) + CRLF
+				endif
+
+			ENDIF
+		next _x
+
+		if empty(cMsgFim)
+			cMsgFim := 'Sucesso !'
+		else
+			AutoGrLog(cMsgFim)
+			cMsgFim := ''
+			MostraErro()
+		endif
+
+	endif
+
+return
+
+	***********************************************************
+STATIC FUNCTION f_QryRun(oMSGRun)
+	***********************************************************
+	Local nReg, nx, astru1, astru2, aBrowse, cBrowse, oBrowse, oDlg
+	Private cAlias  := 'TMPHVQUERY'
+
+	cRun := changeQuery( UPPER(cRun) )
+	If TCSQLEXEC( cRun ) < 0
+		msgstop('[Erro Query]: ' + CRLF + TCSQLError(), 'Script')
+		return
+	Else
+		MPSysOpenQuery( cRun, cAlias)
+	EndIf
+
+
+	IF ! (cAlias)->( EOf() )
+
+		astru1 := {} //nome
+		astru2 := {} //tamanho
+		aStruct := (cAlias)->( dbstruct() )
+		For nx := 1 To Len( aStruct )
+			aadd(astru1, aStruct[nx][1])
+			aadd(astru2, aStruct[nx][3] + 10)
+		next nx
+
+		aBrowse := {}
+		cBrowse := ''
+		nReg    := 0
+		(cAlias)->( dbgotop() )
+		While (cAlias)->( !EOf() )
+
+			aadd(aBrowse,array(len(astru1)))
+
+			for nx := 1 to len(aBrowse[len(aBrowse)])
+
+				aBrowse[len(aBrowse)][nx] := (cAlias)->&(astru1[nx])
+
+			next nx
+
+			(cAlias)->( dbskip() )
+		EndDo
+
+
+		for nx := 1 To len(astru1)
+			if nx == 1
+				cBrowse += '{aBrowse[oBrowse:nAt,'  +cvaltochar(nx)+'],'
+			elseif nx > 1 .and. nx < Len(astru1)
+				cBrowse += 'aBrowse[oBrowse:nAt,'   +cvaltochar(nx)+'],
+			else
+				cBrowse += 'aBrowse[oBrowse:nAt,'   +cvaltochar(nx)+']}
+			endif
+		next nx
+
+		_inidlg := 150
+		_atedlg := 150
+		DEFINE DIALOG oDlg TITLE "Resultado da Consulta" FROM _inidlg,_atedlg TO 0750,1500 PIXEL
+
+		oBrowse := TCBrowse():New( 00 , 00, 675, 280,, astru1,astru2, oDlg,,,,,{||},,,,,,,.F.,,.T.,,.F.,,, )
+		oBrowse:SetArray(aBrowse)
+		oBrowse:bLine := {|| &(cBrowse)  }
+		oBrowse:lHScroll := .t.
+		oBrowse:lVScroll := .t.
+
+		TButton():New( 287, 015, "Fechar"       , oDlg,{|| oDlg:End() },40,010,,,.F.,.T.,.F.,,.F.,,,.F.)
+		TButton():New( 287, 625, "Gera Planilha", oDlg,{|| oDlg:End(),GeraXLS('Query Usuario', {astru1,astru2}, aBrowse) },40,010,,,.F.,.T.,.F.,,.F.,,,.F.)
+
+		ACTIVATE DIALOG oDlg CENTERED
+	ELSE
+
+		MSGALERT( 'Não há dados a exibir', 'Script' )
+
+	ENDIF
+
+
+	***********************************************************
+STATIC FUNCTION f_UpdRun(oMSGRun)
+	***********************************************************
+	// Local nReg, nx, astru1, astru2, aBrowse, cBrowse, oBrowse, oDlg
+	Local aRun := {}
+	Local i
+	Private cAlias  := 'TMPHVUPD'
+	aRun := StrTokArr(cRun,";")
+	// cRun := changeQuery( UPPER(cRun) )
+	For i := 1 to Len(aRun)
+		If TCSQLEXEC( aRun[i] ) < 0
+			msgstop('[Erro Query]: ' + CRLF + TCSQLError(), 'Script')
+			return
+		Else
+			Conout("Sucesso:"+CRLF+aRun[i])
+		EndIf
+	Next
+
+Return MsgInfo('sucesso',)
+
+	***********************************************************
+STATIC FUNCTION f_PesMVC(oMSGRun)
+	***********************************************************
+	Local _x,_y
+	Local CSVLIN    := ''
+	Private aParams, aFiles, aSubFiles, aFilesOk
+
+	aParams := {}; aFiles := {}; aSubFiles := {}; aFilesOk := {}
+	_awise  := 'MODELDEF'
+	_EXT    := 'PRW/PRX/PRJ'
+	cPath   := alltrim(cPath)
+	cAtrib  := iif( lSubP, 'D', cAtrib )
+
+	if !subs(cPath,len(cPath),1) == '\'
+		cPath   += '\'
+	endif
+
+	aFiles  := Directory( cPath+'*.*', cAtrib )
+
+//Check subpastas - ini
+	IF lSubP
+		for _x:= 1 to len(aFiles)
+			if aFiles[_x][5] == 'D'
+				if !subs(alltrim(aFiles[_x][1]),1,1) == '.'
+					f__subpasta(cPath+aFiles[_x][1]+'\')
+				endif
+				loop
+			endif
+
+			aadd(aFilesOk, aFiles[_x])
+
+		next _x
+
+		aFiles := aFilesOk
+		if !empty(aSubFiles)
+			for _x := 1 to len(aSubFiles)
+				aadd(aFiles, aSubFiles[_x])
+			next _x
+		endif
+	ENDIF
+//Check subpastas - fim
+
+//Nome do arquivo
+	For _x:= 1 to Len(cPath)
+		if subs(cPath,_x,1) $ '/\' .and. _x < len(cPath)
+			_PosIni := _x + 1
+		endif
+	Next _x
+
+	xNome := Subs(cPath, _PosIni,Len(cPath))
+	if subs(xNome,len(xNome)) $ '/\'
+		xNome := Subs(xNome, 1,Len(xNome) - 1); endif
+
+//Pesquisa Fontes
+		for _x := 1 To Len(aFiles)
+
+			if ! subs(aFiles[_x][1],at('.',aFiles[_x][1]) + 1) $ _EXT
+				loop; endif
+
+				Sleep(500)
+				oMSGRun:SetText('Pesquisando : '+aFiles[_x][1])
+				ProcessMessages()
+
+				FT_FUSE(cPath+aFiles[_x][1])
+				FT_FGoTop()
+				WHILE !FT_FEof()
+					CSVLIN := upper( FT_FReadLn() )
+
+					if  _awise $ CSVLIN
+
+						//Nome do arquivo
+						For _y:= 1 to Len(aFiles[_x][1])
+							if subs(aFiles[_x][1],_y,1) $ '/\' .and. _y < len(aFiles[_x][1])
+								_PosIni := _y + 1
+							endif
+						Next _y
+
+						if FindFunction( subs(aFiles[_x][1], _PosIni, at('.',subs(aFiles[_x][1], _PosIni)) - 1) )
+							_inFont := dTOc( getAPOinfo(subs(aFiles[_x][1], _PosIni))[4] )
+
+						elseif  FindFunction( 'U_'+subs(aFiles[_x][1], _PosIni, at('.',subs(aFiles[_x][1], _PosIni)) - 1) )
+							_inFont := dTOc( getAPOinfo(subs(aFiles[_x][1], _PosIni))[4] )
+
+						else
+							_inFont := 'Nao_Compilado'
+						endif
+
+						aadd(aParams, { aFiles[_x][1], _inFont })
+
+					endif
+
+					FT_FSkip()
+				END
+				FT_FUse()
+
+
+			next _x
+
+//Cria Planilha
+			IF Len(aParams) > 0
+
+				Sleep(500)
+				oMSGRun:SetText('preparando arquivo .csv, Aguarde...')
+				ProcessMessages()
+
+				cParInc := ''
+				//aSort(aParams, , , {|x, y| x[1]+x[2] < y[1]+y[2]})
+
+				For _x := 1 To Len(aParams)
+
+					cParInc += aParams[_x][1]+';'
+					cParInc += aParams[_x][2]+CRLF
+
+				Next x
+
+				xNome +='_'+dtos(date())+strtran(time(),':','')+'.csv'
+				MemoWrite(  cPath2+xNome, cCabec + CRLF + cParInc )
+				ShellExecute('OPEN', xNome, '', cPath2, 1)
+			ELSE
+				cMsgFim := 'Nenhuma correspondência encontrada.'
+			ENDIF
+
+			RETURN
+
+
+Static Function GeraXLS(cTitulo, aCabec, aDados)
+	Local aTabela  := {}
+	Local aCab     := {}
+	Local n1       := 0
+	Private oPlanilha 	:= TEXCELHV():New()
+
+	For n1:= 1 to Len(aCabec[1])
+		AADD(aCab, {aCabec[1][n1], 1/*aCabec[2][n1]*/, .F.})
+	Next n1
+
+
+	AADD(aTabela,{"Dados",cTitulo,aCab,aDados})
+	LjMsgRun("Aguarde, Gerando Planilha Excel...",,{|| oPlanilha:GERAR(cTitulo, aTabela, GETTEMPPATH())} )
+
+Return
+
+	CLASS TEXCELHV
+
+		DATA oExcel
+		DATA cArqPesq
+		DATA nAlign
+
+		PUBLIC METHOD New() CONSTRUCTOR
+		PUBLIC METHOD GERAR( cTitulo, aTabela )
+
+	ENDCLASS
+
+//-----------------------------------------------------------------
+METHOD New() CLASS TEXCELHV
+
+
+
+Return Self
+
+//Metodo de Geracao da Planilha
+METHOD GERAR( cTitulo, aTabela, cCaminho ) Class TEXCELHV
+	local n1,n2
+
+	oExcel   := FWMSExcel():New()
+
+	If Empty(cCaminho)
+		cCaminho := "C:\"
+	EndIf
+
+	cArqPesq := Alltrim(cCaminho)+"Planilha_"+Replace(Time(),":","")+".xml"
+
+
+	For n1:=1 To Len(aTabela)
+
+		// Pasta com dados da empresa
+		oExcel:AddworkSheet( aTabela[n1][1] )
+		oExcel:AddTable    ( aTabela[n1][1], aTabela[n1][2] )
+
+
+		For n2:=1 To Len(aTabela[n1][3])
+
+			If aTabela[n1][3][n2][3]
+				nAlign := 2
+			ElseIf aTabela[n1][3][n2][2] = 1
+				nAlign := 1
+			Else
+				nAlign := 3
+			EndIf
+
+			// 					 DSC PLAN		 DSC TABELA				DSC COLUNA
+			oExcel:AddColumn   ( aTabela[n1][1], aTabela[n1][2], 		aTabela[n1][3][n2][1],   nAlign		,aTabela[n1][3][n2][2] )
+
+		Next n2
+
+		//Tabela de Dados
+		For n2:=1 To Len(aTabela[n1][4])
+
+			oExcel:AddRow      ( aTabela[n1][1], aTabela[n1][2], aTabela[n1][4][n2] )
+
+		Next n2
+
+	Next n1
+
+
+	If !ApOleClient("MSExcel")
+		MsgAlert("Microsoft Excel não instalado!")
+	Else
+		//Ativando o arquivo e gerando o xml
+		oExcel:Activate()
+		oExcel:GetXMLFile(cArqPesq)
+
+		//Abrindo o excel e abrindo o arquivo xml
+		oExcelApp:= MsExcel():New()            //Abre uma nova conexão com Excel
+		oExcelApp:WorkBooks:Open(cArqPesq)     //Abre uma planilha
+		oExcelApp:SetVisible(.T.)              //Visualiza a planilha
+		oExcelApp:Destroy()                    //Encerra o processo do gerenciador de tarefas
+
+		//ShellExecute("open",cArqPesq,"","",1)
+
+	EndIf
+
+Return
+
+
+	***********************************************************
+STATIC FUNCTION f__Valid(nBuild)
+	***********************************************************
+	Local lRet      := !empty(cCombo)
+
+	Do Case
+	Case nBuild == 99 //restart dlg
+		lScreen := .T.
+		cPath := ''; cPath2:= ''; cRun := ''
+		oDLG:End()
+
+	Case nBuild == 1 .and. lRet
+
+		cCombo  := aOperacao[oCmb:nAt]
+		cOper   := cvalTOchar(oCmb:nAt)
+		cMsgFim := ''
+
+		if cOper $ '14' //Executor de comandos...
+
+		elseif cOper $ '23'  //Operações - Parametros SX6, CSV, Brw
+			cCabec  := 'ARQUIVO;PARAMETRO;CONTEUDO;TIPO;DESCRICAO;ORIGEM'
+			lCmb1   := oCmb:nAt == 2
+			lSubP   := .F.
+			_aPathTp:= iif(lCmb1, {GETF_LOCALHARD+GETF_NETWORKDRIVE+GETF_RETDIRECTORY,'Pasta','Todos os arquivos|*.*'},;
+				{GETF_LOCALHARD+GETF_NETWORKDRIVE,'Arquivo','Arquivo (*.csv) | *.csv'})
+
+		elseif cOper == '6' //cOper $ '??' //Valide outras construções...
+			cCabec  := 'ARQUIVO_MVC;INFO'
+			lCmb1   := oCmb:nAt == 6
+			lSubP   := .F.
+			_aPathTp:= iif(lCmb1, {GETF_LOCALHARD+GETF_NETWORKDRIVE+GETF_RETDIRECTORY,'Pasta','Todos os arquivos|*.*'},;
+				{GETF_LOCALHARD+GETF_NETWORKDRIVE,'Arquivo','Arquivo (*.csv) | *.csv'})
+
+		elseif .f. //cOper $ '??' //Valide outras construções...
+
+		endif
+
+	Case nBuild == 2
+
+		cCombo  := aOperacao[oCmb:nAt]
+		cOper   := cvalTOchar(oCmb:nAt)
+		cMsgFim := ''
+
+		if cOper $ '23'
+			IF lCmb1
+				if !EXISTDIR( cPath )
+					if !MAKEDIR(cPath) == 0
+						lRet := .F.
+						MsgStop('Parâmetros incorretos!', 'HV |')
+					endif
+				endif
+				if !EXISTDIR( cPath2 )
+					if !MAKEDIR(cPath2) == 0
+						lRet := .F.
+						MsgStop('Parâmetros incorretos!', 'HV |')
+					endif
+				endif
+
+			Else
+				if !file(cPath)
+					lRet := .F.
+					MsgStop('O arquivo informado não existe, favor revisar.', 'HV |')
+				endif
+			EndIf
+
+		elseif cOper $ '14'
+
+		endif
+	EndCase
+
+RETURN lRet
+
+
+	*+-------------------------------------------------------------------------+*
+	*|Funcao      | CallChgXnu  | Autor |                           	   	   |*
+	*+------------+------------------------------------------------------------+*
+	#DEFINE CTRL_E	05
+	#DEFINE CTRL_F	06
+
+User Function CallChgXnu()
+	aRet := ParamIxb[5]
+
+	SetKey(CTRL_E, {|| u_HVutil() })
+	SetKey(CTRL_F, {|| u_HVutil2() })
+
+return aRet
+
+	*+-------------------------------------------------------------------------+*
+	*|Funcao      | ChkExec  | Autor |                                 	   	   |*
+	*+------------+------------------------------------------------------------+*
+	#DEFINE CTRL_E	05
+	#DEFINE CTRL_F	06
+
+User Function ChkExec()
+
+	Local lRet := .t.
+
+	SetKey(CTRL_E, {|| u_HVutil() })
+	SetKey(CTRL_F, {|| u_HVutil2() })
+
+return lRet
+
+
+User Function CARACESP(cDado)
+	//Variavel Local de Controle
+	Local aCarcEsp := {}
+	Local num
+	//Imputa os Caracteres Especiais no Array de Controle
+	AADD(aCarcEsp,{"!", "Exclamacao"})
+	AADD(aCarcEsp,{"@", "Arroba"})
+	AADD(aCarcEsp,{"#", "Sustenido"})
+	AADD(aCarcEsp,{"$", "Cifrao"})
+	AADD(aCarcEsp,{"%", "Porcentagem"})
+	AADD(aCarcEsp,{"*", "Asterisco"})
+	AADD(aCarcEsp,{"/", "Barra"})
+	AADD(aCarcEsp,{"\", "ContraBarra"})
+	AADD(aCarcEsp,{"&", "Comercial"})
+	AADD(aCarcEsp,{"(", "Parentese"})
+	AADD(aCarcEsp,{")", "Parentese"})
+	AADD(aCarcEsp,{"+", "Mais"})
+	AADD(aCarcEsp,{"¨", "Trema"})
+	AADD(aCarcEsp,{"=", "Igual"})
+	AADD(aCarcEsp,{"~", "Til"})
+	AADD(aCarcEsp,{"^", "Circunflexo"})
+	AADD(aCarcEsp,{"´", "Agudo"})
+	AADD(aCarcEsp,{"`", "Crase"})
+	AADD(aCarcEsp,{"]", "Chave"})
+	AADD(aCarcEsp,{"[", "Chave"})
+	AADD(aCarcEsp,{"{", "Colchete"})
+	AADD(aCarcEsp,{"}", "Colchete"})
+	AADD(aCarcEsp,{";", "Ponto e Virgula"})
+	AADD(aCarcEsp,{":", "Dois Pontos"})
+	AADD(aCarcEsp,{">", "Maior que"})
+	AADD(aCarcEsp,{"<", "Menor que"})
+	AADD(aCarcEsp,{"?", "Interrogacao"})
+	//AADD(aCarcEsp,{"_", "Underline"})
+	//AADD(aCarcEsp,{",", "Virgula"})
+	AADD(aCarcEsp,{"-", "Hifen"})
+	AADD(aCarcEsp,{"°", "Grau"})
+	AADD(aCarcEsp,{"º", "Grau"})
+	AADD(aCarcEsp,{"ª", " "})
+	AADD(aCarcEsp,{"á", " "})
+	AADD(aCarcEsp,{"à", " "})
+	AADD(aCarcEsp,{"Á", " "})
+	AADD(aCarcEsp,{"À", " "})
+	AADD(aCarcEsp,{"É", " "})
+	AADD(aCarcEsp,{"È", " "})
+	AADD(aCarcEsp,{"Ê", " "})
+	AADD(aCarcEsp,{"ê", " "})
+	AADD(aCarcEsp,{"ã", " "})
+	AADD(aCarcEsp,{"Ã", " "})
+	AADD(aCarcEsp,{"ô", " "})
+	AADD(aCarcEsp,{"Ô", " "})
+	AADD(aCarcEsp,{"õ", " "})
+	AADD(aCarcEsp,{"Õ", " "})
+	AADD(aCarcEsp,{"í", " "})
+	AADD(aCarcEsp,{"Í", " "})
+	AADD(aCarcEsp,{"|", "Pipe"})
+	AADD(aCarcEsp,{"²", " "})
+	AADD(aCarcEsp,{"³", " "})
+	AADD(aCarcEsp,{"£", " "})
+	AADD(aCarcEsp,{"¢", " "})
+	AADD(aCarcEsp,{"¬", " "})
+	AADD(aCarcEsp,{"§", " "})
+	AADD(aCarcEsp,{"'", "Aspa simples"})
+	AADD(aCarcEsp,{'"', "Aspa dupla"})
+	For num:= 1 to Len(aCarcEsp)
+		//Verifica se Algum dos Caracteres Especiais foi Digitado
+		If At(aCarcEsp[num,1], AllTrim(cDado)) <> 0
+			//Se Sim Emite uma Mensagem
+			cDado := StrTran(cDado,aCarcEsp[num,1],"")
+		EndIf
+	Next num
+Return cDado
+
+User Function PIC(cTipo)
+	Local cPict := ""
+	If AllTrim(cTipo) == "J"
+		cPict := "@R 99.999.999/9999-99"
+	Else
+		cPict := "@R 999.999.999-99"
+	EndIf
+	cPict := cPict + "%C"
+Return cPict
+
+	#include "rwmake.ch"
+	#include "protheus.ch"
+	#include "topconn.ch"
+	#include "colors.ch"
+	#include "font.ch"
+	#include "ap5mail.ch"
+
+	#Define USADO CHR(0) + CHR(0) + CHR(1)
+
+/*----------------------------------------------------------------------*
+| User: F3PESQ (_Tipo, _Operacao)                                       |
+|-----------------------------------------------------------------------|
+|  Utilidade:                                                           |
+|	a função é chamada ao se localizar no campo e acionar a tecla 'F3'. |
+|   Esta tecla chamará a consulta específica do campo. Será passado:    |
+|     TIPO: 'T0', 'T2', etc...                                          |
+|     ROTINA: Movimentação Bancária, Documento de Entrada, etc...       |
+|     OPERAÇÃO: 'CREDITO' ou 'DEBITO', apenas para os códigos T.        |
+|                                                                       |
+|  Após ser chamada esta função, os campos retornarão valor de acordo   |
+|  com Query estabelecida pela Regra CAM.                               |
+*----------------------------------------------------------------------*/
+
+User Function F3PESQ(cAlias,aIndex,xRet)
+
+Local nX 
+Local cWhere := ""
+PUBLIC  aRet       := {}
+Private cAliF3     := GetNextAlias()
+PRIVATE cMarca     := GetMark()
+PRIVATE lInverte   := .F.
+Private cCondMarca := ""
+Private _lRet      := .F.
+Private _aDados    := {}
+Private cPesq      := &(ReadVar()) + Space(100)
+Private cCombo     := SPACE(50)
+
+SetKey( K_CTRL_0,  {|| Ctrl0(), cPesq := SPACE(100) } )
+SetKey( K_CTRL_1,  {|| Ctrl1(cAlias,aIndex), cPesq := SPACE(100) } )
+SetKey( K_CTRL_2,  {||oDlg1:End(),_lRet:=.T.} )
+SetKey( K_CTRL_3,  {||oDlg1:End(),_lRet:=.F.} )
+
+cDesc := FWSX2Util():GetFile(cAlias)
+
+/*---------------------------------------------------------------------------
+## Declaração de Variaveis Private dos Objetos                             ##
+---------------------------------------------------------------------------*/
+SetPrvt("oFont1","oDlg1","oSay1","oBrw1","oSBtn0","oSBtn1","oSBtn2","oGet1")
+
+aCPO1 := {{'MARCA' ,,''}}
+
+For nX := 1 to Len(aIndex)
+	aAdd(aCPO1,{aIndex[nX],,FWSX3Util():GetDescription(aIndex[nX]) })
+Next nX
+		//   {'COD'   ,,'Codigo'},;
+		//   {'DESC1' ,,'Descricao'}}
+
+
+// IF "SB1" $ cAlias
+//     aAdd(aCPO1,{'APLIC' ,,'Aplicação'})
+// Endif
+
+ // Criação da tabela temporária
+  aCampos := {{"MARCA","C",002,0}}
+
+For nX := 1 to Len(aIndex)
+	aAdd(aCampos,{aIndex[nX],FWSX3Util():GetFieldType(aIndex[nX]) ,FWSX3Util():GetFieldStruct(aIndex[nX])[3],FWSX3Util():GetFieldStruct(aIndex[nX])[4] })
+Next nX
+
+// IF "SB1" $ cAlias
+//     aAdd(aCampos,{"APLIC","C",150,0})
+// Endif
+
+ // --- Criar tabela temporária
+ // ---------------------------
+  oTempTable := FWTemporaryTable():New(cAliF3)
+  oTemptable:SetFields(aCampos)
+//   oTempTable:AddIndex("01",{"COD"  ,"DESC1"})
+//   oTempTable:AddIndex("02",{"DESC1","COD"})
+For nX := 1 to Len(aIndex)
+	oTempTable:AddIndex(StrZero(nX,2),{aIndex[nX]})
+Next nX
+
+	If !Empty(Alltrim(cPesq))
+		cWhere := "("
+		For nX := 1 to Len(aIndex)
+			cWhere += "TRIM("+Alltrim(aIndex[nX]) + ") LIKE '"+Alltrim(cPesq)+"' ESCAPE '\' "
+			IF nX < Len(aIndex)
+				cWhere += " OR "
+			Endif
+		Next nX
+		cWhere += ")"
+	Endif
+
+  oTempTable:Create()
+
+  MsAguarde({|| LeConsulta(cAlias,aIndex,cWhere) }, OemToAnsi("Aguarde"), OemToAnsi("Preparando Consulta..."))
+
+  ******** JANELA DE DIALOGO PRINCIPAL **********
+  oFont1 := TFont():New( "Arial Narrow",0,-13,,.F.,0,,400,.F.,.F.,,,,,, )
+  oDlg1  := MSDialog():New( 141,224,412,793,"Consulta Específica                  Fonte: F3PESQ",,,.F.,,,,,,.T.,,,.T. )
+  oSay1  := TSay():New( 096,008,{||"Pesquisar por:"},oDlg1,,oFont1,.F.,.F.,.F.,.T.,CLR_BLACK,CLR_WHITE,040,008)
+
+  dbSelectArea(cAliF3)
+
+  (cAliF3)->(dbGoTop())
+  
+  oMark := MsSelect():New( cAliF3,"MARCA",cCondMarca,aCPO1,@lInverte,@cMarca,{000,000,084,280},,, oDlg1 )
+  
+  oMark:oBrowse:Refresh(.t.)
+  oMark:bMark :={|n| oDlg1:End(),_lRet:=.T. }
+  oMark:oBrowse:lhasMark            := .T.
+  oMark:oBrowse:lCanAllmark         := .F.
+  oMark:oBrowse:acolumns[1]:lbitmap := .T.
+  oMark:oBrowse:acolumns[1]:lnolite := .T.
+  oMark:oBrowse:acolumns[1]:ledit   := .F.
+
+//   oSBtn0 := SButton():New( 112,120,3,{|| MsAguarde({|| LeConsulta(cAlias) }, OemToAnsi("Aguarde"), OemToAnsi("Removendo filtros..."), cPesq := SPACE(100)) },oDlg1,,"", )
+  oSBtn0 := TButton():New( 112,114, "Limpar (Ctrl+1)",oDlg1,{|| MsAguarde({|| LeConsulta(cAlias,aIndex) }, OemToAnsi("Aguarde"), OemToAnsi("Removendo filtros..."), cPesq := SPACE(100)) }, 42,10,,,.F.,.T.,.F.,,.F.,,,.F. )
+//   oSBtn1 := SButton():New( 112,160,1,{||oDlg1:End(),_lRet:=.T.},oDlg1,,"", )
+  oSBtn1 := TButton():New( 112,160, "OK (Ctrl+2)",oDlg1,{||oDlg1:End(),_lRet:=.T.}, 42,10,,,.F.,.T.,.F.,,.F.,,,.F. )
+//   oSBtn2 := SButton():New( 112,196,2,{||oDlg1:End(),_lRet:=.F.},oDlg1,,"", )
+  oSBtn2 := TButton():New( 112,206, "Cancelar (Ctrl+3)",oDlg1,{||oDlg1:End(),_lRet:=.F.}, 42,10,,,.F.,.T.,.F.,,.F.,,,.F. )
+//   oCBox1 := TComboBox():New( 085,052,{|u| If( Pcount()>0, cCombo:= u, cCombo)},{"1-Descricao","2-Codigo"},072,010,oDlg1,,,,CLR_BLACK,CLR_WHITE,.T.,,"",,,,,,,"cCombo")
+  oGet1  := TGet():New( 096,052,{|u| If(PCount()>0,cPesq:=u,cPesq)},oDlg1,152,008,'@!',{|u| U_GETPESQ(cAlias,aIndex,cCombo)},CLR_BLACK,CLR_WHITE,,,,.T.,"",,,.F.,.F.,,.F.,.F.,"","cPesq",,)
+  oGet1:cPlaceHold := "Aperte CTRL+0 para focar"
+
+  oGet1:SetFocus()
+  oMark:oBrowse:Refresh(.t.)
+  oDlg1:Activate(,,,.T.)
+
+
+ IF _lRet 
+	For nX := 1 to Len(xRet)
+		aAdd(aRet,&("(cAliF3)->"+xRet[nX]))
+	Next nX
+
+	IF Empty(aRet[1])
+		_lRet := .F.
+	Endif
+ Endif
+
+  dbSelectArea(cAliF3)
+
+  oTempTable:Delete()
+
+    //Limpando Atalhos
+	SetKey( K_CTRL_0,  Nil )
+	SetKey( K_CTRL_1,  Nil )
+	SetKey( K_CTRL_2,  Nil )
+	SetKey( K_CTRL_3,  Nil )
+Return _lRet
+
+//-------------------------------------------------------------------
+/*/{Protheus.doc} LeConsulta()
+  Ler a Consulta.
+  						  
+  @Parametro: _Tipo     = Tipo da pesquisa
+              -Operacao = Operação a realizar
+  @author Desconhecido
+  @version P12.1.17
+  @since  16/12/2019	
+/*/
+//-------------------------------------------------------------------
+Static Function LeConsulta(cAlias,aIndex,cWhere)
+    Local cQuery := " "
+    Local cAli1 := GetNextAlias()
+	Local cDB := TCGetDB()
+	Local nX
+    Default cWhere := ""
+    
+    //Limpa os dados da tabela temporária
+    oTempTable:Zap()
+
+	// Query para preparar os dados.
+	IF "ORACLE" $ cDb
+		cQuery := " SELECT * FROM "+RETSQLNAME(cAlias)
+		cQuery += " WHERE D_E_L_E_T_ <> '*' "
+		IF !Empty(cWhere)
+			cQuery += " AND " + cWhere
+		Endif
+		cQuery += " AND ROWNUM <= 100"
+	Else
+		cQuery := " SELECT TOP 100 * FROM "+RETSQLNAME(cAlias)
+		cQuery += " WHERE D_E_L_E_T_ <> '*' "
+		IF !Empty(cWhere)
+			cQuery += " AND " + cWhere
+		Endif
+	Endif
+
+	MpSysOpenQuery(cQuery,cAli1)
+	Dbselectarea(cAli1)
+	(cAli1)->(DBGOTOP())
+
+	if (cAli1)->(Eof())
+        Reclock(cAliF3,.T.)
+        For nX := 1 to Len(aIndex)
+			cTipo := FWSX3Util():GetFieldType(aIndex[nX])
+			IF cTipo == "D"
+				Replace &("(cAliF3)->"+aIndex[nX])   with CtoD("")
+			ElseIf cTipo == "C"
+				Replace &("(cAliF3)->"+aIndex[nX])   with Space(FWSX3Util():GetFieldStruct(aIndex[nX])[3])
+			ElseIf cTipo == "N"
+				Replace &("(cAliF3)->"+aIndex[nX])   with 0
+			Endif
+			(cAliF3)->(MsUnlock())
+		Next nX
+        (cAliF3)->(MsUnlock())
+	endif
+
+	/* Fim da alteração */
+	While !(cAli1)->(Eof())
+		
+        Reclock(cAliF3,.T.)
+		For nX := 1 to Len(aIndex)
+			cTipo := FWSX3Util():GetFieldType(aIndex[nX])
+			IF cTipo == "D"
+				Replace &("(cAliF3)->"+aIndex[nX])   with StoD(&("(cAli1)->"+aIndex[nX]))
+			Else
+				Replace &("(cAliF3)->"+aIndex[nX])   with &("(cAli1)->"+aIndex[nX])
+			EndIf
+			(cAliF3)->(MsUnlock())
+		Next nX
+
+		(cAli1)->(dbskip())
+	EndDo
+
+	dbSelectarea(cAli1)
+	(cAli1)->(dbCloseArea())
+  
+Return
+
+//-------------------------------------------------------------------
+/*/{Protheus.doc} F3PESQ()
+  Localizar a chave digitada.
+  						  
+  @Parametro: cCombo = Lista de Campos de pesquisa
+  @author Desconhecido
+  @version P12.1.17
+  @since  16/12/2019	
+/*/
+//-------------------------------------------------------------------
+User Function GetPesq(cAlias,aIndex,cCombo)
+	Local nX
+	Local cWhere := ""
+
+	IF !Empty(Alltrim(cPesq))
+		cWhere := "("
+		For nX := 1 to Len(aIndex)
+			cWhere += "TRIM("+Alltrim(aIndex[nX]) + ") LIKE '"+Alltrim(cPesq)+"' ESCAPE '\' "
+			IF nX < Len(aIndex)
+				cWhere += " OR "
+			Endif
+		Next nX
+		cWhere += ")"
+	Endif
+
+	//" (B1_COD LIKE '"+Alltrim(cPesq)+"' OR  B1_DESC LIKE '"+cPesq+"')")
+
+    MsAguarde({|| LeConsulta(cAlias,aIndex,cWhere)}, OemToAnsi("Aguarde"), OemToAnsi("Filtrando dados..."))
+    
+	oMark:oBrowse:Refresh(.t.)
+
+Return .T.
+
+Static Function Ctrl1(cAlias,aIndex)
+
+MsAguarde({|| LeConsulta(cAlias,aIndex) }, OemToAnsi("Aguarde"), OemToAnsi("Removendo filtros..."))
+
+Return
+
+Static Function Ctrl0()
+
+oGet1:SetFocus()
+
+Return
