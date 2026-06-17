@@ -1,4 +1,3 @@
-
 #Include "Protheus.ch"
 
 #Define PERG_OFX2CNAB  "OFX2CNAB "  
@@ -28,29 +27,26 @@ Static cST_CONVENIO   := DEF_CONVENIO
 
 User Function OFX2CNAB()
 
-    Local aRegs    := {}
-    Local cPerg    := PERG_OFX2CNAB
-    Local cBanco   := ""
-    Local cAgencia := ""
-    Local cConta   := ""
-    Local cCNPJ    := ""
-    Local cNomEmp  := ""
-    Local cNomBco  := ""
-    Local cConv    := ""
-    Local cArqOFX  := ""
-    Local cArqOut  := ""
+    Local aRegs     := {}
+    Local cPerg     := PERG_OFX2CNAB
+    Local cBanco    := ""
+    Local cAgencia  := ""
+    Local cConta    := ""
+    Local cCNPJ     := ""
+    Local cNomEmp   := ""
+    Local cNomBco   := ""
+    Local cConv     := ""
+    Local cArqOFX   := ""
+    Local cArqOut   := ""
     Local cNomeBase := ""
     Local cDirOFX   := ""
     Local nBarra    := 0
-
-
 
     fnCriaSx1(aRegs, cPerg)
 
     If ! Pergunte(cPerg, .T.)
         Return Nil
     EndIf
-
 
     cBanco   := AllTrim(MV_PAR01)
     cAgencia := AllTrim(MV_PAR02)
@@ -76,35 +72,16 @@ User Function OFX2CNAB()
         Return Nil
     EndIf
 
-
-    // nBarra := 0
-    // Do While nK > 0
-        
-    //     If SubStr(cArqOFX, nK, 1) == "\" .Or. SubStr(cArqOFX, nK, 1) == "/"
-    //         nBarra := nK
-    //         Exit
-    //     EndIf
-    //     nK--
-    // EndDo
-
-    nBarra := rat("\", cArqOFX)
-    // cDirOFX   := If(nBarra > 0, Left(cArqOFX, nBarra), "")  
+    nBarra    := rat("\", cArqOFX)
     cNomeBase := StrTran(SubStr(cArqOFX, nBarra + 1),'.','')
 
-    ALERT(cDirOFX)
-
-
     If Empty(cArqOut)
-      
         cArqOut := cDirOFX + cNomeBase + "_cnab240.txt"
-        
     ElseIf Right(cArqOut, 1) == "\" .Or. Right(cArqOut, 1) == "/"
-      
         cArqOut := cArqOut + cNomeBase + "_cnab240.txt"
     EndIf
 
-    ALERT(cArqOut)
-
+    // Atualiza as variáveis estáticas que serão usadas na montagem dos registros
     cST_BANCO      := PadL(Left(cBanco,    3),  3, "0")
     cST_AGENCIA    := PadL(Left(cAgencia,  5),  5, "0")
     cST_CONTA      := PadL(Left(cConta,   12), 12, "0")
@@ -112,7 +89,10 @@ User Function OFX2CNAB()
     cST_NOME_EMP   := cNomEmp
     cST_NOME_BANCO := cNomBco
     cST_CONVENIO   := cConv
-
+    
+    // JLS-16/06/2026
+    cST_DV_AG      := PadR(AllTrim(MV_PAR10), 1)
+    cST_DV_CONTA   := PadR(AllTrim(MV_PAR11), 1)
 
     OFXDoConv(cArqOFX, cArqOut)
 
@@ -126,7 +106,6 @@ Static Function fnCriaSx1(aRegs, cPerg)
     Local nJ       := 0
     Local nY       := 0
 
-
     aAdd(aRegs,{cPerg,"01","Banco (3 digitos)      ","","","mv_ch1","C",3,0,0,"G","","MV_PAR01","","","",DEF_BANCO,"","","","","","","","","","","","","","","","","","","","","","","","",""})
     aAdd(aRegs,{cPerg,"02","Agencia (5 digitos)    ","","","mv_ch2","C",5,0,0,"G","","MV_PAR02","","","",DEF_AGENCIA,"","","","","","","","","","","","","","","","","","","","","","","","",""})
     aAdd(aRegs,{cPerg,"03","Conta Corrente (12 dig)","","","mv_ch3","C",12,0,0,"G","","MV_PAR03","","","",DEF_CONTA,"","","","","","","","","","","","","","","","","","","","","","","","",""})
@@ -136,7 +115,11 @@ Static Function fnCriaSx1(aRegs, cPerg)
     aAdd(aRegs,{cPerg,"07","Convenio (deixe branco)","","","mv_ch7","C",20,0,0,"G","","MV_PAR07","","","",DEF_CONVENIO,"","","","","","","","","","","","","","","","","","","","","","","","",""})
     aAdd(aRegs,{cPerg,"08","Arquivo OFX (entrada)  ","","","mv_ch8","C",100,0,0,"G","","MV_PAR08","","","","","","","","","","","","","","","","","","","","","","","","","","","","",""})
     aAdd(aRegs,{cPerg,"09","Arq. CNAB saida(branco=auto)","","","mv_ch9","C",100,0,0,"G","","MV_PAR09","","","","","","","","","","","","","","","","","","","","","","","","","","","","",""})
-
+    // JLS-16/06/2026
+    aAdd(aRegs,{cPerg,"10","DV da Agência","","","mv_ch10","C",1,0,0,"G","","MV_PAR10","","","","","","","","","","","","","","","","","","","","","","","","","","","","",""})
+    aAdd(aRegs,{cPerg,"11","DV da Conta","","","mv_ch11","C",1,0,0,"G","","MV_PAR11","","","","","","","","","","","","","","","","","","","","","","","","","","","","",""})
+    aAdd(aRegs,{cPerg,"12","Versao Layout (Branco=Auto)","","","mv_ch12","C",3,0,0,"G","","MV_PAR12","","","","","","","","","","","","","","","","","","","","","","","","",""})
+    
     dbSelectArea("SX1")
     SX1->(dbSetOrder(1))
 
@@ -180,21 +163,20 @@ Static Function OFXDoConv(cArqOFX, cArqOut)
     Local i
     Local cMsg        := ""
     Local cArqSrv     := ""
-
+    Local cVersao     := ""
 
     If !ParseOFX(cArqOFX, @cDateRef, @nBalFinal, @aTransacoes)
         MsgAlert("Falha ao ler o arquivo OFX." + Chr(13) + ;
-                 "Verifique se o arquivo estÃ¡ no formato correto.", "Erro")
+                 "Verifique se o arquivo está no formato correto.", "Erro")
         Return Nil
     EndIf
     If Len(aTransacoes) == 0
-        MsgAlert("Nenhuma transaÃ§Ã£o encontrada no arquivo OFX.", "AtenÃ§Ã£o")
+        MsgAlert("Nenhuma transação encontrada no arquivo OFX.", "Atenção")
         Return Nil
     EndIf
 
     cDateCNAB := DDMMAAAA(cDateRef)
     cHoraCNAB := StrTran(Time(), ":", "")    
-
 
     For i := 1 To Len(aTransacoes)
         If aTransacoes[i][3] == "C"
@@ -204,28 +186,40 @@ Static Function OFXDoConv(cArqOFX, cArqOut)
         EndIf
     Next i
 
-
     nSaldoIni    := nBalFinal - nTotCre + nTotDeb
     cSitIni      := If(nSaldoIni   >= 0, "C", "D")
     cSitFin      := If(nBalFinal   >= 0, "C", "D")
     nSaldoIniAbs := Abs(nSaldoIni)
     nBalFinal    := Abs(nBalFinal)
-
-  
+ 
     nDet   := Len(aTransacoes)
     nLote  := nDet + 2     
     nTotal := nLote + 2   
 
+    // JLS-16/06/2026
+    // Se o usuário deixou em branco, o sistema decide pelo código do banco (Automático)
+    If Empty(AllTrim(MV_PAR12))
+        Do Case
+            Case cST_BANCO == "001" // Banco do Brasil
+                cVersao := "083"
+            Case cST_BANCO == "341" // Itaú
+                cVersao := "040"
+            Otherwise
+                cVersao := "030"
+        EndCase
+    Else
+        // Se o usuário digitou algo, respeita o parâmetro e garante 3 dígitos com zeros à esquerda
+        cVersao := PadL(AllTrim(MV_PAR12), 3, "0")
+    EndIf
+
     //-- Monta registros
-    AAdd(aLinhas, HdrArquivo(cDateCNAB, cHoraCNAB, "000001"))
-    AAdd(aLinhas, HdrLote(cDateCNAB, nSaldoIniAbs, cSitIni))
+    AAdd(aLinhas, HdrArquivo(cDateCNAB, cHoraCNAB, "000001", cVersao))
+    AAdd(aLinhas, HdrLote(cDateCNAB, nSaldoIniAbs, cSitIni, cVersao))
     For i := 1 To nDet
         AAdd(aLinhas, DetalheE(i, aTransacoes[i]))
     Next i
     AAdd(aLinhas, TrlLote(nLote, cDateCNAB, nBalFinal, cSitFin, nTotDeb, nTotCre))
     AAdd(aLinhas, TrlArquivo(1, nTotal))
-
-
 
     //-- Grava direto no servidor com o caminho informado
     cArqSrv := cArqOut
@@ -291,7 +285,6 @@ Static Function ParseOFX(cFile, cDateRef, nBalance, aTransacoes)
     FRead(nArq, @cContent, nSize)
     FClose(nArq)
 
-  
     cContent := StrTran(cContent, Chr(13), "")   
     aLines   := SplitStr(cContent, Chr(10))      
 
@@ -300,14 +293,25 @@ Static Function ParseOFX(cFile, cDateRef, nBalance, aTransacoes)
         cLine  := AllTrim(StrTran(aLines[i], Chr(9), ""))
         cUpper := Upper(cLine)
 
-
         nPos := At("<BALAMT>", cUpper)
         If nPos > 0
             cVal     := AllTrim(SubStr(cLine, nPos + 8))
-           
-            nPos := At("[", cVal)
-            If nPos > 0
-                cVal := Left(cVal, nPos - 1)
+           // JLS-16/06/2026 - Tratamento para valores no formato brasileiro (com "R$", "." como milhar e "," como decimal)
+            If "R$" $ cVal
+                cVal := StrTran(cVal, "R$", "")
+                cVal := StrTran(cVal, " ", "")
+                cVal := StrTran(cVal, ".", "") // Remove o separador de milhar (se houver)
+                cVal := StrTran(cVal, ",", ".") // Troca a vírgula de decimal por ponto
+                // Procuramos a posição do primeiro caractere que não seja número ou ponto
+                nFim := At("<", cVal)
+                If nFim > 0
+                    cVal := Left(cVal, nFim - 1)
+                EndIf
+            Else
+                nPos := At("[", cVal)
+                If nPos > 0
+                    cVal := Left(cVal, nPos - 1)
+                EndIf
             EndIf
             nBalance := Val(AllTrim(cVal))
         EndIf
@@ -315,7 +319,16 @@ Static Function ParseOFX(cFile, cDateRef, nBalance, aTransacoes)
         nPos := At("<DTSTART>", cUpper)
         If nPos > 0
             cVal     := AllTrim(SubStr(cLine, nPos + 9))
-            cDateRef := Left(cVal, 8)
+            // JLS-16/06/2026 - Tratamento para datas no formato brasileiro (com "/") ou americano (sem "/")
+            // cDateRef := Left(cVal, 8)
+            If "/" $ cVal
+                // Caso OPEA: "04/01/2026 21:03</DTSTART>"
+                cVal    := StrTran(Left(cVal, 10), "/", "") // Remove barras -> "04012026"
+                cDateRef := SubStr(cVal, 5, 4) + SubStr(cVal, 3, 2) + Left(cVal, 2) // Padroniza para AAAAMMDD ("20260104")
+            Else
+                // Caso Genial: "20260604000000"
+                cDateRef := Left(cVal, 8) // Mantém AAAAMMDD ("20260604")
+            EndIf
         EndIf
 
         If At("<STMTTRN>", cUpper) > 0 .And. At("</STMTTRN>", cUpper) == 0
@@ -327,19 +340,38 @@ Static Function ParseOFX(cFile, cDateRef, nBalance, aTransacoes)
             cMemo  := ""
         EndIf
 
-
         If lInTrn
 
             nPos := At("<DTPOSTED>", cUpper)
             If nPos > 0
-             
                 cVal  := AllTrim(SubStr(cLine, nPos + 10))
-                cData := Left(cVal, 8)
+                // JLS-16/06/2026 - Tratamento para datas no formato brasileiro (com "/") ou americano (sem "/")
+                // cData := Left(cVal, 8)
+                If "/" $ cVal
+                    // Caso OPEA: "04/01/2026 21:03</DTSTART>"
+                    cVal  := StrTran(Left(cVal, 10), "/", "") // Remove barras -> "04012026"
+                    cData := SubStr(cVal, 5, 4) + SubStr(cVal, 3, 2) + Left(cVal, 2) // Padroniza para AAAAMMDD ("20260104")
+                Else
+                    // Caso Genial: "20260604000000"
+                    cData := Left(cVal, 8)
+                EndIf
             EndIf
 
             nPos := At("<TRNAMT>", cUpper)
             If nPos > 0
                 cVal   := AllTrim(SubStr(cLine, nPos + 8))
+                // JLS-16/06/2026 - Tratamento para valores no formato brasileiro (com "R$", "." como milhar e "," como decimal)
+                If "R$" $ cVal
+                    cVal := StrTran(cVal, "R$", "")
+                    cVal := StrTran(cVal, " ", "")
+                    cVal := StrTran(cVal, ".", "") // Remove o separador de milhar (se houver)
+                    cVal := StrTran(cVal, ",", ".") // Troca a vírgula de decimal por ponto
+                    // Procuramos a posição do primeiro caractere que não seja número ou ponto
+                    nFim := At("<", cVal)
+                    If nFim > 0
+                        cVal := Left(cVal, nFim - 1)
+                    EndIf
+                EndIf
                 nValor := Val(cVal)
                 cTipo  := If(nValor >= 0, "C", "D")
                 nValor := Abs(nValor)
@@ -357,7 +389,6 @@ Static Function ParseOFX(cFile, cDateRef, nBalance, aTransacoes)
 
         EndIf
 
-     
         If At("</STMTTRN>", cUpper) > 0
             If lInTrn .And. !Empty(cData)
                 AAdd(aTransacoes, { cData, nValor, cTipo, ;
@@ -369,7 +400,7 @@ Static Function ParseOFX(cFile, cDateRef, nBalance, aTransacoes)
 
     Next i
 
-    Return .T.
+Return .T.
 
 
 Static Function CnabA(cVal, nSize)
@@ -397,7 +428,6 @@ Static Function CnabV(nAmount, nDig, nDec)
 
     Default nDig := 16
     Default nDec := 2
-
 
     nFator := iif(nDec == 2, 100, iif(nDec == 3, 1000, 10))
 
@@ -453,57 +483,56 @@ Static Function OFXRAt(cSub, cStr)
 Return nLast
 
 
-
-
-Static Function HdrArquivo(cDateCNAB, cHora, cNSA)
+Static Function HdrArquivo(cDateCNAB, cHora, cNSA, cVersao)
     Local r := ""
 
     Default cNSA := "000001"
+    Default cVersao := "030"
 
-    r += CnabN(Val(cST_BANCO), 3)          // 001-003  Banco na compensaÃ§Ã£o
+    r += CnabN(Val(cST_BANCO), 3)          // 001-003  Banco na compensação
     r += "0000"                             // 004-007  Lote = "0000"
     r += "0"                                // 008-008  Tipo registro = "0"
     r += Space(9)                           // 009-017  CNAB (brancos)
-    r += cST_TIPO_INSC                      // 018-018  Tipo inscriÃ§Ã£o 1=CPF / 2=CNPJ
-    r += CnabNS(cST_CNPJ, 14)              // 019-032  NÂº inscriÃ§Ã£o da empresa (14)
-    r += CnabA(cST_CONVENIO, 20)            // 033-052  CÃ³digo convÃªnio banco (20 alfa)
-    r += cST_AGENCIA                        // 053-057  AgÃªncia (5 num)
-    r += cST_DV_AG                          // 058-058  DV agÃªncia (1 alfa)
+    r += cST_TIPO_INSC                      // 018-018  Tipo inscrição 1=CPF / 2=CNPJ
+    r += CnabNS(cST_CNPJ, 14)              // 019-032  Nº inscrição da empresa (14)
+    r += CnabA(cST_CONVENIO, 20)            // 033-052  Código convênio banco (20 alfa)
+    r += cST_AGENCIA                        // 053-057  Agência (5 num)
+    r += cST_DV_AG                          // 058-058  DV agência (1 alfa)
     r += cST_CONTA                          // 059-070  Conta corrente (12 num)
     r += cST_DV_CONTA                       // 071-071  DV conta (1 alfa)
     r += cST_DV_AGCTA                       // 072-072  DV ag/conta (1 alfa)
     r += CnabA(cST_NOME_EMP,  30)           // 073-102  Nome empresa (30 alfa)
     r += CnabA(cST_NOME_BANCO, 30)          // 103-132  Nome banco (30 alfa)
     r += Space(10)                          // 133-142  CNAB (brancos)
-    r += "2"                                // 143-143  CÃ³digo retorno = "2"
-    r += cDateCNAB                          // 144-151  Data geraÃ§Ã£o DDMMAAAA (8 num)
-    r += cHora                              // 152-157  Hora geraÃ§Ã£o HHMMSS (6 num)
-    r += PadL(Left(cNSA, 6), 6, "0")        // 158-163  NÂº sequencial arquivo (6 num)
-    r += "030"                              // 164-166  VersÃ£o layout = "030"
-    r += "00000"                            // 167-171  Densidade de gravaÃ§Ã£o (5 num)
+    r += "2"                                // 143-143  Código retorno = "2"
+    r += cDateCNAB                          // 144-151  Data geração DDMMAAAA (8 num)
+    r += cHora                              // 152-157  Hora geração HHMMSS (6 num)
+    r += PadL(Left(cNSA, 6), 6, "0")        // 158-163  Nº sequencial arquivo (6 num)
+    r += cVersao                            // 164-166  Versão layout // JLS-16/06/2026
+    r += "00000"                            // 167-171  Densidade de gravação (5 num)
     r += Space(20)                          // 172-191  Reservado banco (20 alfa)
     r += Space(20)                          // 192-211  Reservado empresa (20 alfa)
     r += Space(11)                          // 212-222  CNAB (brancos)
-    r += "CSP"                              // 223-225  CobranÃ§a s/papel
+    r += "CSP"                              // 223-225  Cobrança s/papel
     r += "000"                              // 226-228  Controle VANs (3 num)
-    r += "  "                               // 229-230  Tipo de serviÃ§o (2 alfa)
-    r += Space(10)                          // 231-240  CÃ³digo ocorrÃªncias (10 alfa)
-
+    r += "  "                               // 229-230  Tipo de serviço (2 alfa)
+    r += Space(10)                          // 231-240  Código ocorrências (10 alfa)
 
     r := Left(r + Space(240), 240)
 Return r
 
 
-Static Function HdrLote(cDateCNAB, nSaldoIni, cSitIni)
+Static Function HdrLote(cDateCNAB, nSaldoIni, cSitIni, cVersao)
     Local r := ""
+    Default cVersao := "030"
 
     r += CnabN(Val(cST_BANCO), 3)          // 001-003
     r += "0001"                             // 004-007  Lote = "0001"
     r += "1"                                // 008-008  Tipo registro = "1"
-    r += "E"                                // 009-009  OperaÃ§Ã£o = "E" (extrato C/C)
-    r += "06"                               // 010-011  Tipo serviÃ§o extrato
-    r += "01"                               // 012-013  Forma lanÃ§amento
-    r += "030"                              // 014-016  VersÃ£o layout lote
+    r += "E"                                // 009-009  Operação = "E" (extrato C/C)
+    r += "06"                               // 010-011  Tipo serviço extrato
+    r += "01"                               // 012-013  Forma lançamento
+    r += cVersao                            // 014-016  Versão layout lote // JLS-16/06/2026
     r += " "                                // 017-017  CNAB
     r += cST_TIPO_INSC                      // 018-018
     r += CnabNS(cST_CNPJ, 14)              // 019-032
@@ -518,9 +547,9 @@ Static Function HdrLote(cDateCNAB, nSaldoIni, cSitIni)
     r += cDateCNAB                          // 143-150  Data saldo inicial DDMMAAAA (8)
     r += CnabV(nSaldoIni, 16, 2)            // 151-168  Valor saldo inicial (18 chars)
     r += cSitIni                            // 169-169  D=devedor / C=credor
-    r += "F"                                // 170-170  PosiÃ§Ã£o = "F" (final)
+    r += "F"                                // 170-170  Posição = "F" (final)
     r += "BRL"                              // 171-173  Moeda
-    r += CnabN(1, 5)                        // 174-178  NÂº sequÃªncia extrato (5 num)
+    r += CnabN(1, 5)                        // 174-178  Nº sequência extrato (5 num)
     r += Space(62)                          // 179-240  CNAB (brancos)
 
     r := Left(r + Space(240), 240)
@@ -534,7 +563,6 @@ Static Function DetalheE(nSeq, aTrn)
     Local cDigits  := ""
     Local cCodBco  := "0000"
     Local i, cCh
-
 
     For i := 1 To Len(cCheck)
         cCh := SubStr(cCheck, i, 1)
@@ -552,7 +580,7 @@ Static Function DetalheE(nSeq, aTrn)
     r += CnabN(Val(cST_BANCO), 3)          // 001-003
     r += "0001"                             // 004-007
     r += "3"                                // 008-008  Tipo registro = "3"
-    r += CnabN(nSeq, 5)                    // 009-013  NÂº sequencial detalhe no lote
+    r += CnabN(nSeq, 5)                    // 009-013  Nº sequencial detalhe no lote
     r += "E"                                // 014-014  Segmento = "E"
     r += Space(3)                           // 015-017  CNAB (brancos)
     r += cST_TIPO_INSC                      // 018-018
@@ -565,13 +593,13 @@ Static Function DetalheE(nSeq, aTrn)
     r += cST_DV_AGCTA                       // 072-072
     r += CnabA(cST_NOME_EMP, 30)            // 073-102
     r += Space(40)                          // 103-142  CNAB (brancos)
-    r += DDMMAAAA(aTrn[1])                  // 143-150  Data lanÃ§amento DDMMAAAA (8)
-    r += CnabV(aTrn[2], 16, 2)             // 151-168  Valor lanÃ§amento (18 chars)
-    r += aTrn[3]                            // 169-169  D=dÃ©bito / C=crÃ©dito
-    r += If(aTrn[3] == "D", "002", "001")   // 170-172  Categoria lanÃ§amento (3 num)
-    r += cCodBco                            // 173-176  CÃ³digo lanÃ§amento banco (4 num)
-    r += CnabA(cMemoTxt, 25)               // 177-201  HistÃ³rico (25 alfa)
-    r += CnabA(cCheck,   20)               // 202-221  NÂº documento comprobatÃ³rio (20 alfa)
+    r += DDMMAAAA(aTrn[1])                  // 143-150  Data lançamento DDMMAAAA (8)
+    r += CnabV(aTrn[2], 16, 2)             // 151-168  Valor lançamento (18 chars)
+    r += aTrn[3]                            // 169-169  D=débito / C=crédito
+    r += If(aTrn[3] == "D", "002", "001")   // 170-172  Categoria lançamento (3 num)
+    r += cCodBco                            // 173-176  Código lançamento banco (4 num)
+    r += CnabA(cMemoTxt, 25)               // 177-201  Histórico (25 alfa)
+    r += CnabA(cCheck,   20)               // 202-221  Nº documento comprobatório (20 alfa)
     r += Space(19)                          // 222-240  CNAB (brancos)
 
     r := Left(r + Space(240), 240)
@@ -600,10 +628,10 @@ Static Function TrlLote(nQtdRegs, cDateCNAB, nSaldoFin, cSitFin, nTotDeb, nTotCr
     r += cDateCNAB                          // 143-150  Data saldo final DDMMAAAA (8)
     r += CnabV(nSaldoFin, 16, 2)           // 151-168  Valor saldo final (18 chars)
     r += cSitFin                            // 169-169  D=devedor / C=credor
-    r += "F"                                // 170-170  PosiÃ§Ã£o = "F" (final)
+    r += "F"                                // 170-170  Posição = "F" (final)
     r += CnabN(nQtdRegs, 6)               // 171-176  Qtd registros do lote (6 num)
-    r += CnabV(nTotDeb, 16, 2)            // 177-194  SomatÃ³ria dÃ©bitos (18 chars)
-    r += CnabV(nTotCre, 16, 2)            // 195-212  SomatÃ³ria crÃ©ditos (18 chars)
+    r += CnabV(nTotDeb, 16, 2)            // 177-194  Somatória débitos (18 chars)
+    r += CnabV(nTotCre, 16, 2)            // 195-212  Somatória créditos (18 chars)
     r += Space(28)                          // 213-240  CNAB (brancos)
 
     r := Left(r + Space(240), 240)
