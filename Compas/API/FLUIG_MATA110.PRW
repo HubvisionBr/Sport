@@ -21,8 +21,8 @@ WSMETHOD POST WSSERVICE FLUIG_MATA110
 	Local nQtde := 0
 	Local nPreco := 0
 	Local oResponse
-	local aArea    	    := GetArea()
-	local aAreaSC1 	    := SC1->(GetArea())
+	// local aArea    	    := GetArea()
+	// local aAreaSC1 	    := SC1->(GetArea())
 	local cDoc          := GetSXENum("SC1","C1_NUM")
 	Private aAutoErro      := {}
 	Private lMsErroAuto    := .F.
@@ -30,7 +30,7 @@ WSMETHOD POST WSSERVICE FLUIG_MATA110
 	Private lAutoErrNoFile := .T.
 	Private cMensag        := ""
 
-	u_logInt("2", "FLUIG_MATA110", Self:GetContent())
+	// u_logInt("2", "FLUIG_MATA110", Self:GetContent())
 
 	::SetContentType("application/json")
 
@@ -106,7 +106,7 @@ WSMETHOD POST WSSERVICE FLUIG_MATA110
 
 	If lMsErroAuto
 		aAutoErro := GETAUTOGRLOG()
-		cMensag   := AllTrim(U_SODE991(aAutoErro))
+		// cMensag   := AllTrim(U_SODE991(aAutoErro))
 
 		SetRestFault(400, "Erro ao criar solicitacao de compra, Error:"+cMensag)
 		lPost := .F.
