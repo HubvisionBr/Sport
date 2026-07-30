@@ -120,7 +120,7 @@ Static Function fnAprovPc(cNumero,cTipo,cGrpIT,cGrupo)
 	Local cAprov	:= ""
 	Local nNivel    := 1
 	Local nCount    := 1
-	Local cUser_Id  := __cuserid 
+	// Local cUser_Id  := __cuserid 
 
 	ConOut("########### PARAMETROS PARA BUSCA DE DOCUMENTOS DA SCR ########")
 	conOut("cNumero:" + iif(cNumero == NIL, "Nil",cNumero))
@@ -167,7 +167,7 @@ Static Function fnAprovPc(cNumero,cTipo,cGrpIT,cGrupo)
 				*/
 			PswOrder(1)
 			IF PswSeek(SCR->CR_USER,.t.)
-				__cUserID := SCR->CR_USER
+				// __cUserID := SCR->CR_USER
 			Endif
 
 			//-- Verifica se esta aguardando liberacao e monta o ventor com os aprovadores do Grupo
@@ -202,7 +202,7 @@ Static Function fnAprovPc(cNumero,cTipo,cGrpIT,cGrupo)
 	Else
 	 //ConOut("### NAO ENCONTROU DOCUMENTO " + cNumero + " NA SCR ######")
 	Endif
-__cuserid := cUser_Id
+// __cuserid := cUser_Id
 Return aAprovador
 
 
@@ -348,6 +348,7 @@ Static Function AddForms(aAprovPc,oForms,cDocumento,aItens,cTipo)
 	Local cComprador := ""
 	Local cUserComp := ""
 	Local cEmailComp := ""
+	Local nTot	:= 0
 
 	cPlan := SubStr(cDocumento, 7)
 	cPlan := SubStr(cPlan, 1, Len(cPlan)-3)
@@ -451,8 +452,8 @@ Static Function AddForms(aAprovPc,oForms,cDocumento,aItens,cTipo)
 					cProd 		:= ALLTRIM(SC7->C7_PRODUTO)
 					cQuant 		:= Transform(SC7->C7_QUANT,PesqPict("SC7","C7_QUANT"))
 					cPrc 		:= Transform(SC7->C7_PRECO,PesqPict("SC7","C7_PRECO"))
-					cTot 		:= (SC7->C7_TOTAL+SC7->C7_SEGURO +SC7->C7_VALFRE+SC7->C7_VALIPI+SC7->C7_DESPESA)-SC7->C7_VLDESC 
-					cTot := Transform(cTot,PesqPict("SC7","C7_TOTAL"))
+					nTot 		:= (SC7->C7_TOTAL+SC7->C7_SEGURO +SC7->C7_VALFRE+SC7->C7_VALIPI+SC7->C7_DESPESA)-SC7->C7_VLDESC 
+					cTot := Transform(nTot,PesqPict("SC7","C7_TOTAL"))
 					//RODRIGO SOBRAL 19/10/2023
 
 					cObs 		:= Iif(!Empty(SC7->C7_OBS),SC7->C7_OBS,SC7->C7_OBSM)
@@ -624,7 +625,7 @@ Static Function AddForms(aAprovPc,oForms,cDocumento,aItens,cTipo)
 				SC7->(DbSetOrder(1))
 				SC7->(MsSeek(xFilial("SC7") + cDocumento))
 				nCount := 1
-				While !SC7->(Eof()) .and. cNumPed == SC7->C7_NUM
+				While !SC7->(Eof()) .and. cDocumento == SC7->C7_NUM
 					IF nCount == 1
 
 						cCdFilial  := FwCodFil()
@@ -647,8 +648,8 @@ Static Function AddForms(aAprovPc,oForms,cDocumento,aItens,cTipo)
 						cPrc 		:= Transform(SC7->C7_PRECO,PesqPict("SC7","C7_PRECO"))
 						//AJUSTE RODRIGO SOBRAL 23/01/2024
 					    //adicao na formacao do valor total do produto 
-					    cTot += (SC7->C7_TOTAL+SC7->C7_SEGURO +SC7->C7_VALFRE+SC7->C7_VALIPI+SC7->C7_DESPESA)-SC7->C7_VLDESC 
-					    cTot:=Transform(cTot,PesqPict("SC7","C7_TOTAL"))
+					    nTot += (SC7->C7_TOTAL+SC7->C7_SEGURO +SC7->C7_VALFRE+SC7->C7_VALIPI+SC7->C7_DESPESA)-SC7->C7_VLDESC 
+					    cTot:=Transform(nTot,PesqPict("SC7","C7_TOTAL"))
 					    //RODRIGO SOBRAL 19/10/2023
 						cObs 		:= Iif(!Empty(SC7->C7_OBS),SC7->C7_OBS,SC7->C7_OBSM)
 						cGrpAprov	:= aAprovPc[i][1]
@@ -954,13 +955,13 @@ Static Function MontForm(nTp,aForm,oForms)
 		oForms["comprador"]     :=	aForm[25]
 		oForms["usercomprador"] :=	aForm[26]
 		oForms["emailcomprador"]:=	aForm[27]
-		DbSelectArea("CN9")
-		CN9->(DbSetOrder(1))
-		CN9->(MsSeek(aForm[3] + aForm[19] + aForm[21]))
-		DbSelectArea("RD0")
-    	RD0->(DbSetOrder(1))
-    	RD0->(MsSeek(xFilial("RD0") + CN9->CN9_XREVIS))
-		oForms["revisor"]       :=	RD0->RD0_NOME
+		// DbSelectArea("CN9")
+		// CN9->(DbSetOrder(1))
+		// CN9->(MsSeek(aForm[3] + aForm[19] + aForm[21]))
+		// DbSelectArea("RD0")
+    	// RD0->(DbSetOrder(1))
+    	// RD0->(MsSeek(xFilial("RD0") + CN9->CN9_XREVIS))
+		oForms["revisor"]       :=	""//RD0->RD0_NOME
 
 	else
 		oForms["item___"+cValTochar(nCount)]           := aForm[1] 
@@ -1108,7 +1109,7 @@ User Function ConFluig(cBody,cPath)
 
 	fwJsonDeserialize(cBody, @oBody)
 
-	cRet := oClient:Post(cx_url, "", cBody )
+	// cRet := oClient:Post(cx_url, "", cBody )
 
 	IF SuperGetMv("HV_LOGAPI",,.T.)
 		ConOut("------------HV --------- Retorno Fluig: " + iif(cRet == NIL, "Nil",cRet))

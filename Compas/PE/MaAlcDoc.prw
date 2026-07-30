@@ -29,7 +29,7 @@ User Function MTALCDOC()
             lAprov := .T.
         EndIf
 
-        // U_APROVAWF(cDocumento,nTpOp,cTipo,cGrpIT,lAprov,cGrupo)
+        U_APROVAWF(cDocumento,nTpOp,cTipo,cGrpIT,lAprov,cGrupo)
     EndIf
 
 Return
