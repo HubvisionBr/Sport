@@ -144,7 +144,7 @@ Static Function fnAprovPc(cNumero,cTipo,cGrpIT,cGrupo)
 
 		// ---- Loop em documentacao p/alcada para verificar quem deve aprovar a liberacao
 		// While !(SCR->(Eof())) .and. SCR->CR_FILIAL == xFilial("SCR") .and. SCR->CR_TIPO == cTipo .and. Alltrim(SCR->CR_NUM) == cNumero .And. AllTrim(cGrpIT) == SCR->CR_ITGRP //NP3-09/07/2022
-		While !(SCR->(Eof())) .and. SCR->CR_FILIAL == xFilial("SCR") .and. SCR->CR_TIPO == cTipo .and. Alltrim(SCR->CR_NUM) == cNumero .And. AllTrim(cGrpIT) == SCR->CR_ITGRP;
+		While !(SCR->(Eof())) .and. SCR->CR_FILIAL == xFilial("SCR") .and. SCR->CR_TIPO == cTipo .and. Alltrim(SCR->CR_NUM) == cNumero .And. AllTrim(cGrpIT) == AllTrim(SCR->CR_ITGRP);
 				.And. AllTrim(cGrupo) == SCR->CR_GRUPO
 			lApvPC := .T.
 
@@ -257,11 +257,11 @@ Static Function MailAprov(aAprovPc,cDocumento,cTipo)
 				If ValType(ojson) == "O"
 					IF ValType(ojson:processinstanceid) == "N"
 						//alteracao para incluir o id de aprovacao no pedido de compras RODRIGO SOBRAL 2024/04/24
-						// If RecLock("SC7", .F.)
-						// 	SC7->C7_XIDFLUI:=AllTrim(STR(ojson:processinstanceid))
-						// 	SC7->(MsUnlock())
-						// EndIf			
-						// SC7->(DbSkip())
+						If RecLock("SC7", .F.)
+							SC7->C7_XIDFLUI:=AllTrim(STR(ojson:processinstanceid))
+							SC7->(MsUnlock())
+						EndIf			
+						SC7->(DbSkip())
 
 							DbSelectArea("DBM")
 							DBM->(DbSetOrder(1))
@@ -1075,46 +1075,100 @@ User Function CancPed(cDocumento,cCnpj,cCodfluig,lAprov,cTipo)
 Return cRet
 
 
-User Function ConFluig(cBody,cPath)
-	Local cRet            := ""
-	local oBody           := NIL
-	Local cAccessToken    := SuperGetMV("MV_FTOKENA",.F.,"") //
-	Local cTokenSecret    := SuperGetMV("MV_FTOKENS",.F.,"")  //
-	Local cURL            := SuperGetMV("MV_JFLGURL",.T.,"") //
-	Local cConsumerKey    := SuperGetMV("MV_FCKEY",.F.,"")
-	Local cConsumerSecret := SuperGetMV("MV_FCSECRE",.F.,"")
-	local cx_url	      := cURL + cPath
+#Include "Protheus.ch"
 
-	// u_logInt("1", cPath, cBody)
+/*/{Protheus.doc} ConFluig
+Envio de payload JSON para Webhook do Hubot/n8n.
+@type    User Function
+@author  Suporte
+@since   03/08/2026
+@param   cBody,  Character, JSON que será enviado no corpo da requisição.
+@param   cPath,  Character, Caminho complementar (opcional/reservado).
+@param   nPath,  Numeric,   1 = Aprov. Compra | Outros = Aprov. Pedido.
+@return  cRet,   Character, Resposta (String/JSON) retornada pelo Webhook.
+/*/
+User Function ConFluig(cBody, cPath, nPath)
+    Local cBaseUrl  := AllTrim(SuperGetMV("HV_WHCOMPRA", .F., "https://workflows.hubot.app.br/webhook")) 
+    Local cEndpoint := ""
+    Local cRet      := ""
+    Local aHeader   := {}
+    Local oRest     := Nil
 
-	cAccess    := cURL+'/portal/api/rest/oauth/access_token'
-	cRequest   := cURL+'/portal/api/rest/oauth/request_token'
-	cAuthorize := cURL+'/portal/api/rest/oauth/authorize'
+    Default cBody   := ""
+    Default cPath   := ""
+    Default nPath   := 1
 
-	ConOut("------------HV --------- Iniciando integracao com FLUIG ")
-	Sleep(500)
-	oUrl    := FWoAuthURL():New( cRequest , cAuthorize , cAccess )
-	//Sleep(500)
+    // Trata a barra no final do parâmetro do MV
+    If Right(cBaseUrl, 1) == "/"
+        cBaseUrl := SubStr(cBaseUrl, 1, Len(cBaseUrl) - 1)
+    EndIf
 
-	oClient := fwOAuthClient():new(cConsumerKey, cConsumerSecret, oUrl, cx_url)
-	//Sleep(500)
+    // Define o endpoint de acordo com o parâmetro nPath
+    If nPath == 1
+        cEndpoint := "/aprovacaodepedido"
+    Else
+        cEndpoint := "/aprovacaodecompra"
+    EndIf
 
-	oClient:cOAuthVersion   := "1.0"
-	oClient:SetContentType("application/json")
-	oClient:setMethodSignature("HMAC-SHA1")
-	oClient:setToken(cAccessToken)
-	oClient:setSecretToken(cTokenSecret)
-	oClient:makeSignBaseString("POST", cx_url)
-	oClient:MakeSignature()
+    // Instancia a classe com a URL base e define o caminho no SetPath
+    oRest := FWRest():New(cBaseUrl)
+    oRest:SetPath(cEndpoint)
+	oRest:SetPostParams(cBody)
 
-	fwJsonDeserialize(cBody, @oBody)
+    // Configura os cabeçalhos da requisição
+    AAdd(aHeader, "Content-Type: application/json; charset=utf-8")
 
-	// cRet := oClient:Post(cx_url, "", cBody )
-
-	IF SuperGetMv("HV_LOGAPI",,.T.)
-		ConOut("------------HV --------- Retorno Fluig: " + iif(cRet == NIL, "Nil",cRet))
-	Endif
-
-	ConOut("------------HV --------- Finalizando integracao com FLUIG ")
+    // ATENÇÃO: Passar o cBody como 2º parâmetro no Post resolve o 'type mismatch on +'
+    If oRest:Post(aHeader)
+        cRet := oRest:GetResult()
+    Else
+        cRet := oRest:GetLastError()
+        If Empty(cRet)
+            cRet := oRest:GetResult()
+        EndIf
+    EndIf
 
 Return cRet
+// User Function ConFluig(cBody,cPath)
+// 	Local cRet            := ""
+// 	local oBody           := NIL
+// 	Local cAccessToken    := SuperGetMV("MV_FTOKENA",.F.,"") //
+// 	Local cTokenSecret    := SuperGetMV("MV_FTOKENS",.F.,"")  //
+// 	Local cURL            := SuperGetMV("MV_JFLGURL",.T.,"") //
+// 	Local cConsumerKey    := SuperGetMV("MV_FCKEY",.F.,"")
+// 	Local cConsumerSecret := SuperGetMV("MV_FCSECRE",.F.,"")
+// 	local cx_url	      := cURL + cPath
+
+// 	// u_logInt("1", cPath, cBody)
+
+// 	cAccess    := cURL+'/portal/api/rest/oauth/access_token'
+// 	cRequest   := cURL+'/portal/api/rest/oauth/request_token'
+// 	cAuthorize := cURL+'/portal/api/rest/oauth/authorize'
+
+// 	ConOut("------------HV --------- Iniciando integracao com FLUIG ")
+// 	Sleep(500)
+// 	oUrl    := FWoAuthURL():New( cRequest , cAuthorize , cAccess )
+// 	//Sleep(500)
+
+// 	oClient := fwOAuthClient():new(cConsumerKey, cConsumerSecret, oUrl, cx_url)
+// 	//Sleep(500)
+
+// 	oClient:cOAuthVersion   := "1.0"
+// 	oClient:SetContentType("application/json")
+// 	oClient:setMethodSignature("HMAC-SHA1")
+// 	oClient:setToken(cAccessToken)
+// 	oClient:setSecretToken(cTokenSecret)
+// 	oClient:makeSignBaseString("POST", cx_url)
+// 	oClient:MakeSignature()
+
+// 	fwJsonDeserialize(cBody, @oBody)
+
+// 	// cRet := oClient:Post(cx_url, "", cBody )
+
+// 	IF SuperGetMv("HV_LOGAPI",,.T.)
+// 		ConOut("------------HV --------- Retorno Fluig: " + iif(cRet == NIL, "Nil",cRet))
+// 	Endif
+
+// 	ConOut("------------HV --------- Finalizando integracao com FLUIG ")
+
+// Return cRet
