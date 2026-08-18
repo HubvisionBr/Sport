@@ -212,13 +212,16 @@ Return aAprovador
 ----------------------------------------------------*/
 Static Function MailAprov(aAprovPc,cDocumento,cTipo)
 
-	Local oJson
+	Local oJson := JsonObject():New()
 	Local oPedido
 	//Local oItens
 	Local oForms
 	Local nX //,nZ,nY
 	Local aItens := {}
 	Local cAprov,cGrp,cItGrp,cApr := ""
+	Local cErro := ""
+	Local cQuery := ""
+	Local nRecnoSC7 := 0
 
 	For nX := 1 to Len(aAprovPc)
 
@@ -253,16 +256,21 @@ Static Function MailAprov(aAprovPc,cDocumento,cTipo)
 			Sleep(500)
 
 			IF !Empty(cRet)
-				FwJSONDeserialize(cRet, @oJSON)
-				If ValType(ojson) == "O"
-					IF ValType(ojson:processinstanceid) == "N"
+				// FwJSONDeserialize(cRet, @oJSON)
+				cErro := oJson:FromJson(cRet)
+				IF Empty(cErro)					
+					IF ojson:HasProperty("processinstanceid") .and. !Empty(ojson["processinstanceid"])
 						//alteracao para incluir o id de aprovacao no pedido de compras RODRIGO SOBRAL 2024/04/24
-						If RecLock("SC7", .F.)
-							SC7->C7_XIDFLUI:=AllTrim(STR(ojson:processinstanceid))
-							SC7->(MsUnlock())
-						EndIf			
-						SC7->(DbSkip())
+						// If RecLock("SC7", .F.)
+						// 	SC7->C7_XIDFLUI:=AllTrim(STR(ojson:processinstanceid))
+						// 	SC7->(MsUnlock())
+						// EndIf			
+						// SC7->(DbSkip())
+						cQuery := "SELECT R_E_C_N_O_ AS RECNOSC7 FROM " + RetSqlName("SC7") + " SC7 WHERE SC7.D_E_L_E_T_ <> '*' AND SC7.C7_FILIAL = '" + xFilial("SC7") + "' AND SC7.C7_XIDFLUI = '" + cValToChar(ojson["processinstanceid"]) + "' "
+						nRecnoSC7 := MPSysExecScalar(cQuery, "RECNOSC7")
 
+						SC7->(DbGoTo(nRecnoSC7))
+						If SC7->(Recno()) == nRecnoSC7							
 							DbSelectArea("DBM")
 							DBM->(DbSetOrder(1))
 							IF DBM->(MsSeek(xFilial("DBM") + PADR(cTipo,LEN(DBM->DBM_TIPO)) + padr(cDocumento,LEN(DBM->DBM_NUM)) + padr(cGrp,LEN(DBM->DBM_GRUPO)) +;
@@ -272,7 +280,7 @@ Static Function MailAprov(aAprovPc,cDocumento,cTipo)
 										.and. DBM->DBM_GRUPO == padr(cGrp,LEN(DBM->DBM_GRUPO)) .and. DBM->DBM_ITGRP == padr(cItGrp,LEN(DBM->DBM_ITGRP)) .and. DBM->DBM_USER == padr(cAprov,LEN(DBM->DBM_USER)) 
 									
 									If RecLock("DBM", .F.)
-										DBM->DBM_XIDFLU := AllTrim(STR(ojson:processinstanceid))
+										DBM->DBM_XIDFLU := 	SC7->C7_XIDFLUI//AllTrim(STR(ojson:processinstanceid))
 										DBM->(MsUnlock())
 									EndIf
 									
@@ -289,17 +297,23 @@ Static Function MailAprov(aAprovPc,cDocumento,cTipo)
 									.and. padr(cGrp,LEN(SCR->CR_GRUPO)) == SCR->CR_GRUPO .and. PADR(cApr,LEN(SCR->CR_APROV)) == SCR->CR_APROV
 									
 									If RecLock("SCR", .F.)
-										SCR->CR_XIDFLU := AllTrim(STR(ojson:processinstanceid))
+										SCR->CR_XIDFLU := 	SC7->C7_XIDFLUI//AllTrim(STR(ojson:processinstanceid))
 										SCR->(MsUnlock())
 									EndIf
 									
 									SCR->(DbSkip())
 								EndDo
 							EndIf	
+							MsgInfo("Pedido de compra " + cDocumento + " enviado para o Fluig com sucesso. ID do processo: " + SC7->C7_XIDFLUI)
+						EndIf
+
 						FreeObj(oJson)
+					Else
+						MsgInfo("Pedido de compra " + cDocumento + " não enviado para o Fluig. Retorno do Fluig.")
 					Endif
 				else
-					
+					MsgInfo("Pedido de compra " + cDocumento + " não enviado para o Fluig. Retorno do Fluig: " + cRet)	
+					// EndIf
 				EndIf
 			EndIf
 		Else
@@ -705,7 +719,8 @@ Static Function AddForms(aAprovPc,oForms,cDocumento,aItens,cTipo)
 						aAdd(aForm,cItGrp)
 						aAdd(aForm,cComprador)
 						aAdd(aForm,cUserComp)
-						aAdd(aForm,cEmailComp)
+						aAdd(aForm,cEmailComp)						
+						aAdd(aForm,SC7->C7_XIDFLUI)
 
 						MontForm(1,aForm,@oForms)
 						
@@ -961,7 +976,8 @@ Static Function MontForm(nTp,aForm,oForms)
 		// DbSelectArea("RD0")
     	// RD0->(DbSetOrder(1))
     	// RD0->(MsSeek(xFilial("RD0") + CN9->CN9_XREVIS))
-		oForms["revisor"]       :=	""//RD0->RD0_NOME
+		oForms["revisor"]       :=	""//RD0->RD0_NOME		
+		oForms["solicitacao"]       :=	aForm[28]// ID FLUIG
 
 	else
 		oForms["item___"+cValTochar(nCount)]           := aForm[1] 
