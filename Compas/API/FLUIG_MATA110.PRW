@@ -77,15 +77,15 @@ WSMETHOD POST WSSERVICE FLUIG_MATA110
 		aadd(aLinha,{"C1_OBS"   	, FwNoAccent(DecodeUTF8(Json:itens[nX]:observacao, "cp1252")), Nil})
 
 		//Novos campos add
-		IF !EMPTY(Json:itens[nX]:contacontabil)
-			aadd(aLinha,{"C1_CONTA"       , Json:itens[nX]:contacontabil, Nil})
-		ENDIF
-		IF !EMPTY(Json:itens[nX]:itemcontabil)
-			aadd(aLinha,{"C1_ITEMCTA"       , Json:itens[nX]:itemcontabil, Nil})
-		ENDIF
-		IF !EMPTY(Json:itens[nX]:classevalor)
-			aadd(aLinha,{"C1_CLVL"       , Json:itens[nX]:classevalor, Nil})
-		ENDIF
+		// IF !EMPTY(Json:itens[nX]:contacontabil)
+		// 	aadd(aLinha,{"C1_CONTA"       , Json:itens[nX]:contacontabil, Nil})
+		// ENDIF
+		// IF !EMPTY(Json:itens[nX]:itemcontabil)
+		// 	aadd(aLinha,{"C1_ITEMCTA"       , Json:itens[nX]:itemcontabil, Nil})
+		// ENDIF
+		// IF !EMPTY(Json:itens[nX]:classevalor)
+		// 	aadd(aLinha,{"C1_CLVL"       , Json:itens[nX]:classevalor, Nil})
+		// ENDIF
 
 		IF !EMPTY(Json:itens[nX]:grupocomprador)
 			aadd(aLinha,{"C1_XGRUPCO"   , Json:itens[nX]:grupocomprador, Nil})

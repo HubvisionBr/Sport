@@ -20,9 +20,9 @@ User Function MTALCDOC()
         EndIf
 
         //Se vier da cotação não envia para o fluig o pedido
-        If IsInCallStack("MATA161") .or. IsInCallStack("MATA160") 
-            RETURN
-        EndIf
+        // If IsInCallStack("MATA161") .or. IsInCallStack("MATA160") 
+        //     RETURN
+        // EndIf
 
         //se for Aprovaçãototvsheus, manda uma uma exclusão //se tipo 7(rejeiçao) exclui
         if nTpOp == 4 .or. nTpOp == 7 
