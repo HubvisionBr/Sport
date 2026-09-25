@@ -216,17 +216,29 @@ Static Function fConfirm(nTipo)
 				
 				//Percorrendo o aAux e adicionando no array
 				For nAux := 1 To Len(aAux)
-					cAux := GetSX3Cache(aAux[nAux], 'X3_TIPO')
-				
-					//Se o tí­tulo estiver em branco, quer dizer que o campo não existe, então é um campo reservado do execauto (como o LINPOS)
-					If Empty(GetSX3Cache(aAux[nAux], 'X3_TITULO'))
-						cCampTipo += aAux[nAux]+";"
-					EndIf
+					IF Alltrim(aAux[nAux]) $ "AUTDTBAIXA,AUTDTCREDITO"
+						//Adiciona na grid
+						aAdd(aHeadImp, {	aAux[nAux],;								//Campo
+											 "D",;			//Tipo
+											.F.})
+					ElseIf Alltrim(aAux[nAux]) $ "AUTJUROS,AUTVLRPG,AUTVLREC"
+						//Adiciona na grid
+						aAdd(aHeadImp, {	aAux[nAux],;								//Campo
+											 "N",;			//Tipo
+											.F.})
+					Else
+						cAux := GetSX3Cache(aAux[nAux], 'X3_TIPO')
 					
-					//Adiciona na grid
-					aAdd(aHeadImp, {	aAux[nAux],;								//Campo
-										Iif(Empty(cAux), ' ', cAux),;			//Tipo
-										.F.})										//Excluí­do
+						//Se o tí­tulo estiver em branco, quer dizer que o campo não existe, então é um campo reservado do execauto (como o LINPOS)
+						If Empty(GetSX3Cache(aAux[nAux], 'X3_TITULO'))
+							cCampTipo += aAux[nAux]+";"
+						EndIf
+						
+						//Adiciona na grid
+						aAdd(aHeadImp, {	aAux[nAux],;								//Campo
+											Iif(Empty(cAux), ' ', cAux),;			//Tipo
+											.F.})
+					Endif										//Excluí­do
 				Next
 				
 				//Chama a tela de observação para preenchimento das informações auxiliares
